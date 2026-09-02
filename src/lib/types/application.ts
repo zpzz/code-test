@@ -54,3 +54,5 @@ export interface DepartmentStat {
   pending: number;
   rejected: number;
 }
+
+export type CreateApplicationInput = Omit<TravelApplication, 'id' | 'status' | 'createdAt' | 'updatedAt'>;

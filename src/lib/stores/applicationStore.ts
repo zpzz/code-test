@@ -1,4 +1,4 @@
-import type { TravelApplication, ApplicationStatus } from '$lib/types/application';
+import type { TravelApplication, ApplicationStatus, CreateApplicationInput } from '$lib/types/application';
 import {
   getApplications,
   getApplicationById,
@@ -30,7 +30,7 @@ export class ApplicationStore {
   };
 
   // 创建
-  create = (data: any) => {
+  create = (data: CreateApplicationInput) => {
     const newApp = createApplication(data);
     this.filters = { ...this.filters, page: 1 }; // 强制回到第一页
     this.load();
@@ -38,7 +38,7 @@ export class ApplicationStore {
   };
 
   // 更新（修改）
-  update = (id: string, data: any) => {
+  update = (id: string, data: CreateApplicationInput) => {
     const updated = updateApplication(id, data);
     // 修改后强制回到第一页
     this.filters = { ...this.filters, page: 1 };

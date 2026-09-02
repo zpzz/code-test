@@ -25,10 +25,9 @@
         refreshList();
     });
 
-    // 新增：删除申请
+    // 删除申请
     function handleDelete(appId: string) {
         if (confirm(`确定要删除申请 ${appId} 吗？此操作不可恢复。`)) {
-            // 调用 Store 的取消或删除逻辑
             applicationStore.cancel(appId);
             refreshList();
             alert('申请已删除！');
@@ -41,8 +40,8 @@
     const paginationItems = $derived.by(() => {
         const delta = 1;
         const range = [];
-        const rangeWithDots = [];
-        let l;
+        const rangeWithDots: (number | string)[] = [];  
+        let l: number | undefined; 
 
         for (let i = 1; i <= totalPages; i++) {
             if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
@@ -261,7 +260,7 @@
                 <span class="px-2 text-gray-500">...</span>
               {:else}
                 <button
-                  on:click={() => goToPage(item)}
+                  on:click={() => goToPage(item as number)}
                   class={`w-10 h-10 flex items-center justify-center border rounded-lg text-sm transition-colors ${
                     currentPage === item 
                     ? 'bg-blue-600 text-white border-blue-600 font-medium' 

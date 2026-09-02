@@ -4,6 +4,7 @@
     import type { ApplicationStats, DepartmentStat } from '$lib/types/application';
     import EChart from '$lib/components/common/EChart.svelte';
     import type { EChartsOption } from 'echarts';
+	import StatCard from '$lib/components/common/StatCard.svelte';
 
     let stats = $state<ApplicationStats | null>(null);
     let deptStats = $state<Record<string, DepartmentStat> | null>(null);
@@ -127,22 +128,10 @@
         {:else}
             <!-- 顶部总览卡片 -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-sm text-gray-500">总申请数</p>
-                    <p class="text-3xl font-bold text-blue-600 mt-2">{stats.total}</p>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-sm text-gray-500">待审批</p>
-                    <p class="text-3xl font-bold text-orange-500 mt-2">{stats.pending}</p>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-sm text-gray-500">已批准</p>
-                    <p class="text-3xl font-bold text-green-600 mt-2">{stats.approved}</p>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-sm text-gray-500">已批准总费用</p>
-                    <p class="text-3xl font-bold text-indigo-600 mt-2">{formatCurrency(stats.totalCost)}</p>
-                </div>
+                <StatCard label="总申请数" value={stats.total} colorClass="text-blue-600" />
+                <StatCard label="待审批" value={stats.pending} colorClass="text-orange-500" />
+                <StatCard label="已批准" value={stats.approved} colorClass="text-success" />
+                <StatCard label="已批准总费用" value={formatCurrency(stats.totalCost)} colorClass="text-indigo-600" />
             </div>
 
             <!-- 图表区 -->
