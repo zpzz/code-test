@@ -14,9 +14,50 @@ pnpm install
 pnpm dev
 ```
 
+## 📁 项目架构说明
+
+```text
+my-app/
+├── src/
+│   ├── routes/                     # 页面路由（SvelteKit 文件路由）
+│   │   ├── +layout.svelte          # 全局布局（导航栏、全局样式、用户信息）
+│   │   ├── +page.svelte            # 申请列表页（搜索、筛选、分页、操作）
+│   │   ├── create/
+│   │   │   └── +page.svelte        # 发起/修改申请页（新增与编辑共用）
+│   │   ├── detail/
+│   │   │   └── [id]/
+│   │   │       └── +page.svelte    # 申请详情页（信息展示、批准、驳回）
+│   │   └── stats/
+│   │       └── +page.svelte        # 统计报表页（ECharts 数据可视化）
+│   │
+│   ├── lib/
+│   │   ├── components/
+│   │   │   └── common/
+│   │   │       ├── StatusBadge.svelte   # 申请状态徽章组件（草稿/待审批等）
+│   │   │       └── EChart.svelte        # ECharts 公共封装组件
+│   │   ├── services/
+│   │   │   └── mock/
+│   │   │       └── application.mock.ts  # Mock 数据源与底层 API 模拟
+│   │   ├── stores/
+│   │   │   └── applicationStore.ts      # 全局状态管理（Svelte 5 $state）
+│   │   ├── types/
+│   │   │   └── application.ts           # TypeScript 类型定义
+│   │   └── app.css                      # 全局样式入口（Tailwind CSS v4）
+│   │
+│   └── app.html                    # 应用入口 HTML
+│
+├── static/                         # 静态资源目录（存放图片等）
+│   └── assets/
+│       └── *.png
+│
+├── package.json                    # 项目依赖与脚本
+├── svelte.config.js                # Svelte 配置
+├── vite.config.ts                  # Vite 构建配置（含 Tailwind v4）
+├── tsconfig.json                   # TypeScript 配置
+├── README.md                       # 项目说明文档
+└── .gitignore                      # Git 忽略文件
+```
 ## 📍 路由说明
-
-
 | 路径                  | 页面名称  | 功能说明                            |
 | ------------------- | ----- | ------------------------------- |
 | `/`                 | 申请列表页 | 支持状态筛选、关键字搜索、分页、修改、删除。          |
