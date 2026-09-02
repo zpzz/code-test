@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { page } from '$app/stores';
+    import { page } from '$app/state';
     import { goto } from '$app/navigation';
     import { applicationStore } from '$lib/stores/applicationStore';
     import StatusBadge from '$lib/components/common/StatusBadge.svelte';
     import type { TravelApplication } from '$lib/types/application';
 
     // 1. 读取路由参数
-    let appId = $derived($page.params.id || '');
+    let appId = $derived(page.params.id || '');
 
     // 2. 设置初始状态为空，等数据加载
     let app = $state<TravelApplication | undefined>(undefined);
