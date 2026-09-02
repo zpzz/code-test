@@ -9,6 +9,7 @@ export interface Applicant {
 }
 
 export interface TravelInfo {
+  origin: string;
   destination: string;
   startDate: string;
   endDate: string;

@@ -3,6 +3,7 @@ import {
   getApplications,
   getApplicationById,
   createApplication,
+  updateApplication, // 新增：导入更新方法
   submitApplication,
   approveApplication,
   rejectApplication,
@@ -23,7 +24,6 @@ export class ApplicationStore {
   load = (filters?: { status?: ApplicationStatus; search?: string; page?: number; pageSize?: number }) => {
     const merged = { ...this.filters, ...filters };
     const result = getApplications(merged);
-    console.info("🚀 ~ ApplicationStore ~ result:", result)
     this.list = result.list;
     this.total = result.total;
     this.filters = merged;
@@ -35,6 +35,15 @@ export class ApplicationStore {
     this.filters = { ...this.filters, page: 1 }; // 强制回到第一页
     this.load();
     return newApp;
+  };
+
+  // 更新（修改）
+  update = (id: string, data: any) => {
+    const updated = updateApplication(id, data);
+    // 修改后强制回到第一页
+    this.filters = { ...this.filters, page: 1 };
+    this.load();
+    return updated;
   };
 
   // 提交

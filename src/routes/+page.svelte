@@ -141,7 +141,7 @@
           type="text"
           bind:value={searchKeyword}
           on:keyup={handleSearchKeyup}
-          placeholder="搜索申请人、目的地、部门..."
+          placeholder="搜索申请人、出发地、目的地、部门..."
           class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <button
@@ -168,7 +168,7 @@
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申请编号</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申请人</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目的地</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">行程</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">费用</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">提交时间</th>
@@ -185,7 +185,9 @@
                       <div class="text-xs text-gray-500">{app.applicant.department}</div>
                     </div>
                   </td>
-                  <td class="px-6 py-4 text-sm text-gray-900">{app.travelInfo.destination}</td>
+                  <td class="px-6 py-4 text-sm text-gray-900">
+                    {app.travelInfo.origin || '-'} → {app.travelInfo.destination}
+                  </td>
                   <td class="px-6 py-4 text-sm font-medium text-gray-900">{formatCurrency(app.travelInfo.estimatedCost)}</td>
                   <td class="px-6 py-4">
                     <StatusBadge status={app.status} />
@@ -200,14 +202,14 @@
                         href="/detail/{app.id}"
                         class="text-blue-600 hover:text-blue-800 text-sm font-medium"
                       >
-                        查看详情 →
+                        查看详情
                       </a>
                       
                       <!-- 修改按钮：只有批准状态下禁用，其他都可点 -->
                       {#if app.status !== 'approved'}
                         <a
                           href="/create?edit={app.id}"
-                          class="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                          class="text-blue-600 hover:text-blue-800 text-sm font-medium"
                         >
                           修改
                         </a>

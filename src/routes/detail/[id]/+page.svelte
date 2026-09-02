@@ -126,6 +126,14 @@
                             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 border-b pb-2">差旅行程</h3>
                             <div class="space-y-3">
                                 <div class="flex justify-between">
+                                    <span class="text-gray-500">出发地</span>
+                                    <span class="font-medium text-gray-900">{app.travelInfo.origin || '-'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">出差目的地</span>
+                                    <span class="font-medium text-gray-900">{app.travelInfo.destination}</span>
+                                </div>
+                                <div class="flex justify-between">
                                     <span class="text-gray-500">出发时间</span>
                                     <span class="font-medium text-gray-900">{formatDate(app.travelInfo.startDate)}</span>
                                 </div>
@@ -169,6 +177,12 @@
                                     <span class="text-gray-500">审批时间</span>
                                     <span class="text-gray-900 text-sm">{formatDate(app.approvedAt)}</span>
                                 </div>
+                                {#if app.rejectReason}
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-500">驳回理由</span>
+                                        <span class="text-red-600 text-sm font-medium">{app.rejectReason}</span>
+                                    </div>
+                                {/if}
                             </div>
                         </div>
                     </div>

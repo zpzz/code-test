@@ -27,6 +27,7 @@ export const users: Applicant[] = [
 function generateMockData(): TravelApplication[] {
   const data: TravelApplication[] = [];
   const statuses: ApplicationStatus[] = ['approved', 'pending', 'rejected', 'draft', 'cancelled'];
+  const origins = ['北京', '上海', '广州', '深圳']; // 出发地
   const destinations = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '重庆'];
   const purposes = [
     '参加行业技术交流会', '拜访重要客户洽谈合作', '参加年度产品发布会', 
@@ -40,12 +41,19 @@ function generateMockData(): TravelApplication[] {
     const status = statuses[i % statuses.length];
     const submittedDate = new Date();
     submittedDate.setDate(submittedDate.getDate() - i * 3); // 随时间递减
+    // 确保出发地和目的地不相同
+    const origin = origins[i % origins.length];
+    let destination = destinations[i % destinations.length];
+    if (destination === origin) {
+      destination = destinations[(i + 1) % destinations.length];
+    }
     
     const app: TravelApplication = {
       id: `APP-2026-${String(i).padStart(3, '0')}`,
       applicant: user,
       travelInfo: {
-        destination: destinations[i % destinations.length],
+        origin: origin,
+        destination: destination,
         startDate: new Date(submittedDate.getTime() + 86400000 * 2).toISOString().split('T')[0],
         endDate: new Date(submittedDate.getTime() + 86400000 * 4).toISOString().split('T')[0],
         purpose: purposes[i % purposes.length],
@@ -78,7 +86,8 @@ function generateMockData(): TravelApplication[] {
       id: 'APP-001',
       applicant: users[0],
       travelInfo: {
-        destination: '北京',
+        origin: '北京',
+        destination: '上海',
         startDate: '2026-09-10',
         endDate: '2026-09-12',
         purpose: '参加技术研讨会，交流最新技术趋势',
@@ -96,6 +105,7 @@ function generateMockData(): TravelApplication[] {
       id: 'APP-002',
       applicant: users[1],
       travelInfo: {
+        origin: '北京',
         destination: '上海',
         startDate: '2026-09-15',
         endDate: '2026-09-18',
@@ -112,6 +122,7 @@ function generateMockData(): TravelApplication[] {
       id: 'APP-003',
       applicant: users[2],
       travelInfo: {
+        origin: '北京',
         destination: '深圳',
         startDate: '2026-09-20',
         endDate: '2026-09-22',
@@ -129,6 +140,7 @@ function generateMockData(): TravelApplication[] {
       id: 'APP-004',
       applicant: users[3],
       travelInfo: {
+        origin: '北京',
         destination: '杭州',
         startDate: '2026-09-25',
         endDate: '2026-09-26',
@@ -144,6 +156,7 @@ function generateMockData(): TravelApplication[] {
       id: 'APP-005',
       applicant: users[4],
       travelInfo: {
+        origin: '北京',
         destination: '成都',
         startDate: '2026-09-05',
         endDate: '2026-09-08',
@@ -190,6 +203,7 @@ export const getApplications = (params?: {
     result = result.filter(app =>
       app.applicant.name.toLowerCase().includes(keyword) ||
       app.travelInfo.destination.includes(keyword) ||
+      app.travelInfo.origin.includes(keyword) ||  // 新增：支持按出发地搜索
       app.applicant.department.includes(keyword)
     );
   }
@@ -231,6 +245,21 @@ export const createApplication = (data: Omit<TravelApplication, 'id' | 'status' 
     (window as any).__mockApplications = applications;
   }
   return newApp;
+};
+
+// 修改申请
+export const updateApplication = (id: string, data: Partial<TravelApplication>): TravelApplication | null => {
+  const index = applications.findIndex(app => app.id === id);
+  if (index === -1) return null;
+
+  const updated = {
+    ...applications[index],
+    ...data,
+    updatedAt: new Date().toISOString()
+  };
+
+  applications[index] = updated;
+  return updated;
 };
 
 // 提交申请
