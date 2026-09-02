@@ -1,9 +1,14 @@
 <script lang="ts">
-	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
-
-	let { children } = $props();
-</script>
-
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
-{@render children()}
+	import '../app.css';
+	import Layout from '$lib/components/common/Layout.svelte';
+	import { onMount } from 'svelte';
+	import { applicationStore } from '$lib/stores/applicationStore';
+  
+	onMount(() => {
+	  applicationStore.load();
+	});
+  </script>
+  
+  <Layout>
+	<slot />
+  </Layout>
