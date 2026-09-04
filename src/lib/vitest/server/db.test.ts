@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { APPLICATION_STATUS } from '$lib/enums';
 import { prisma } from '../../server/db';
 
 describe('SQLite 数据库连接与数据读取测试', () => {
@@ -23,7 +24,9 @@ describe('SQLite 数据库连接与数据读取测试', () => {
     // 查找处于审批中的申请
     const pendingApps = await prisma.application.findMany({
       where: { 
-        status: { in: ['pending_manager', 'pending_finance'] }
+        status: {
+          in: [APPLICATION_STATUS.pendingManager, APPLICATION_STATUS.pendingFinance]
+        }
       }
     });
 
