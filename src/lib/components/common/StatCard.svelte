@@ -1,17 +1,20 @@
 <script lang="ts">
-    // 接收父组件传入的参数
-    let { 
-        label, 
-        value, 
-        colorClass = 'text-blue-600' // 默认蓝色
-    }: { 
-        label: string; 
-        value: string | number; 
-        colorClass?: string 
-    } = $props();
+	interface Props {
+		label: string;
+		value: string | number;
+		valueClass?: string;
+		class?: string;
+	}
+
+	let {
+		label,
+		value,
+		valueClass = 'text-slate-900',
+		class: className = ''
+	}: Props = $props();
 </script>
 
-<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-    <p class="text-sm text-gray-500">{label}</p>
-    <p class="text-3xl font-bold mt-2 {colorClass}">{value}</p>
+<div class="rounded-lg border border-slate-200 bg-white px-5 py-4 {className}">
+	<p class="text-sm text-slate-500">{label}</p>
+	<p class="mt-1 text-3xl leading-tight font-semibold {valueClass}">{value}</p>
 </div>

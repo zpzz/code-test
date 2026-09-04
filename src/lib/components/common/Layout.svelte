@@ -15,7 +15,7 @@
             <div class="hidden sm:flex space-x-4">
               <a 
                 href="/" 
-                class="px-3 py-2 rounded-md text-sm font-medium {$page.url.pathname === '/' || $page.url.pathname.startsWith('/detail/') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'} transition-colors"
+                class="px-3 py-2 rounded-md text-sm font-medium {$page.url.pathname === '/' || $page.url.pathname.startsWith('/requests/') ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'} transition-colors"
               >
                 📋 申请列表
               </a>
