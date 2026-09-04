@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1. 完善的用户表（支持角色和上下级关系）
+model User {
+  id           String        @id
+  employeeId   String        @unique
+  name         String
+  title        String        @default("员工") // 职位
+  department   String
+  role         String        @default("employee") // employee / manager / finance / admin
+  email        String        @default("")
+  
+  // 自关联：上级领导
+  managerId    String?
+  manager      User?         @relation("Management", fields: [managerId], references: [id])
+  subordinates User[]        @relation("Management")
+
+  applications Application[]
+  auditLogs    AuditLog[]
+}
+
+// 2. 申请表
+model Application {
+  id            String      @id
+  type          String      // "travel" 或 "leave"
+  
+  applicantId   String
+  applicant     User        @relation(fields: [applicantId], references: [id])
+  
+  applicantName String
+  department    String
+  
+  status        String      @default("draft") // draft / pending_manager / pending_finance / approved / rejected / cancelled
+  
+  fields        String      // 存 JSON 字符串
+  
+  createdAt     DateTime
+  updatedAt     DateTime    @updatedAt
+  submittedAt   DateTime?
+
+  auditLogs     AuditLog[]
+}
+
+// 3. 审批日志表
+model AuditLog {
+  id            String      @id
+  at            DateTime
+  
+  actorId       String
+  actor         User        @relation(fields: [actorId], references: [id])
+  actorName     String
+  
+  action        String      // "submit", "approve", "reject", "cancel"
+  fromStatus    String
+  toStatus      String
+  comment       String?
+  
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+}
