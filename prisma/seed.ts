@@ -6,12 +6,14 @@ const prisma = new PrismaClient();
 // 定义死 ID
 const LI_JINGLI_ID = '0841d235-b926-4a41-aecd-3c5de814bd68'; // 李经理
 const FINANCE_ID = 'f1a2c3e4-5b6d-4f8a-9c0b-1d2e3f4a5b6c'; // 王会计
+const FINANCE_ASSISTANT_ID = 'b2c3d4e5-6f7a-4b8c-9d0e-1f2a3b4c5d6e'; // 赵会计
 
 // 标准用户列表（⚠️ 注意顺序：先插入经理和会计，再插入普通员工！）
 const USERS = [
   // 1. 先创建没有上级的领导
   { id: LI_JINGLI_ID, employeeId: 'EMP10001', name: '李经理', title: '研发部主管', department: '研发部', role: 'manager', managerId: null, email: 'limanager@company.com' },
-  { id: FINANCE_ID, employeeId: 'EMP20001', name: '王会计', title: '财务专员', department: '财务部', role: 'finance', managerId: null, email: 'wangaccountant@company.com' },
+  { id: FINANCE_ID, employeeId: 'EMP20001', name: '王会计', title: '财务专员', department: '财务部', role: 'finance', managerId: LI_JINGLI_ID, email: 'wangaccountant@company.com' },
+  { id: FINANCE_ASSISTANT_ID, employeeId: 'EMP20002', name: '赵会计', title: '财务专员', department: '财务部', role: 'finance', managerId: LI_JINGLI_ID, email: 'zhaoaccountant@company.com' },
   
   // 2. 再创建有上级的普通员工
   { id: 'e61fe483-3b09-4e05-b4fe-dde3bc2a8694', employeeId: 'EMP10086', name: '张三', title: '软件工程师', department: '研发部', role: 'employee', managerId: LI_JINGLI_ID, email: 'zhangsan@company.com' },
@@ -27,7 +29,7 @@ async function main() {
   for (const user of USERS) {
     await prisma.user.upsert({
       where: { id: user.id },
-      update: {},
+      update: { managerId: user.managerId },
       create: user
     });
   }

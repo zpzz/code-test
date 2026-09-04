@@ -1,4 +1,6 @@
-export type ApplicationStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'cancelled';
+import type { ApplicationStatusValue, TransportValue } from '$lib/enums';
+
+export type ApplicationStatus = ApplicationStatusValue;
 
 export interface Applicant {
   id: string;
@@ -14,7 +16,7 @@ export interface TravelInfo {
   startDate: string;
   endDate: string;
   purpose: string;
-  transportType: 'flight' | 'train' | 'car' | 'other';
+  transportType: TransportValue;
   estimatedCost: number;
 }
 
