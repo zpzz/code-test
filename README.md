@@ -117,3 +117,15 @@ src/
 - **EChart 封装**：图表已抽成公共 `EChart.svelte` 组件，支持传入配置自适应。
 - **业务表格组件封装**：规划抽取为传入 `columns` 和 `dataSource` 的通用表格组件。
 - **枚举工厂类实现**：抽象枚举类（可拓展，支持后端枚举获取，融合前后端枚举）。
+
+
+
+![待我审批](/static/assets/待我审批.png)
+
+![发起申请](/static/assets/发起申请.png)
+
+![统计报表](/static//assets/统计报表.png)
+
+![我的申请](/static/assets/我的申请.png)
+
+![详情页面](/static/assets/详情页面.png)
