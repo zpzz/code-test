@@ -3,3 +3,4 @@
  */
 export * from './application';
 export * from './application-form';
+export * from './application-display';

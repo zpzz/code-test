@@ -7,16 +7,16 @@
 		type TableColumn,
 		type TableHeaderContext
 	} from '$lib/components/common/Table.svelte';
+	import { formatDateTime } from '$lib/format/date';
 	import { currentUserState } from '$lib/stores/user';
 	import { APPLICATION_STATUS, USER_ROLE, enumService } from '$lib/enums';
-
-	type TravelFields = {
-		reason?: string;
-		legs?: Array<{ from?: string; to?: string }>;
-		budget?: Record<string, number | undefined>;
-	};
-
-	type DateValue = string | Date | null | undefined;
+	import {
+		applicationBudgetTotalOf,
+		applicationFieldsOf,
+		applicationRouteOf,
+		centsToYuan,
+		formatAmount
+	} from '$lib/utils';
 	type Approval = PageData['applications'][number];
 
 	let { data, form }: { data: PageData; form?: { success?: boolean; message?: string } } = $props();
@@ -81,47 +81,6 @@
 		}
 
 		selectedIds = [...approvalIds];
-	}
-
-	function fieldsOf(application: PageData['applications'][number]): TravelFields {
-		return application.fields as TravelFields;
-	}
-
-	function routeOf(application: PageData['applications'][number]): string {
-		const cities: string[] = [];
-
-		for (const leg of fieldsOf(application).legs ?? []) {
-			const from = leg.from?.trim();
-			const to = leg.to?.trim();
-
-			if (from && cities[cities.length - 1] !== from) cities.push(from);
-			if (to && cities[cities.length - 1] !== to) cities.push(to);
-		}
-
-		return cities.length > 0 ? cities.join(' → ') : '-';
-	}
-
-	function budgetOf(application: PageData['applications'][number]): string {
-		const total = Object.values(fieldsOf(application).budget ?? {}).reduce(
-			(sum, value) => sum + (Number(value) || 0),
-			0
-		);
-		return `¥${(total / 100).toLocaleString('zh-CN', {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2
-		})}`;
-	}
-
-	function formatDateTime(value: DateValue): string {
-		if (!value) return '-';
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return '-';
-
-		return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(
-			date.getUTCDate()
-		).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(
-			date.getUTCMinutes()
-		).padStart(2, '0')}`;
 	}
 
 	function openRejectDialog(application: Approval): void {
@@ -220,7 +179,9 @@
 
 			{#snippet cell(context: TableCellContext<Approval>)}
 				{@const { column, record } = context}
+				<!-- 根据列定义渲染待审批表格中的自定义单元格内容。 -->
 				{#if column.key === 'selection'}
+					<!-- 单选框只负责维护当前页面已选择的申请编号。 -->
 					<input
 						type="checkbox"
 						checked={selectedIds.includes(record.id)}
@@ -229,22 +190,31 @@
 						onchange={() => toggleSelection(record.id)}
 					/>
 				{:else if column.key === 'applicant'}
+					<!-- 申请人同时展示姓名和所属部门，便于审批人快速识别。 -->
 					<div>
 						<p class="font-medium text-slate-800">{record.applicantName}</p>
 						<p class="mt-0.5 text-xs text-slate-500">{record.department}</p>
 					</div>
 				{:else if column.key === 'route'}
-					<span class="block max-w-56 truncate text-slate-700" title={routeOf(record)}>
-						{routeOf(record)}
+					<!-- 行程内容较长时截断展示，完整内容通过 title 查看。 -->
+					<span class="block max-w-56 truncate text-slate-700" title={applicationRouteOf(record)}>
+						{applicationRouteOf(record)}
 					</span>
 				{:else if column.key === 'reason'}
-					{@const fields = fieldsOf(record)}
-					<span class="block max-w-72 truncate" title={fields.reason ?? ''}>{fields.reason || '-'}</span>
+					<!-- 出差事由同样采用截断展示，避免影响表格布局。 -->
+					<span class="block max-w-72 truncate" title={applicationFieldsOf(record).reason ?? ''}>
+						{applicationFieldsOf(record).reason || '-'}
+					</span>
 				{:else if column.key === 'budget'}
-					<span class="font-medium text-slate-800">{budgetOf(record)}</span>
+					<!-- 后端金额按分存储，展示前转换为元并格式化金额。 -->
+					<span class="font-medium text-slate-800">
+						{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
+					</span>
 				{:else if column.key === 'submittedAt'}
+					<!-- 提交时间统一使用公共日期格式化方法展示。 -->
 					<span class="text-slate-500">{formatDateTime(record.submittedAt)}</span>
 				{:else if column.key === 'actions'}
+					<!-- 操作列提供详情、通过和驳回三个审批动作。 -->
 					<div class="flex justify-end gap-3">
 						<a
 							href={`/requests/${record.id}?from=approvals`}
@@ -252,6 +222,7 @@
 						>
 							查看详情
 						</a>
+						<!-- 通过操作提交当前审批人的身份和申请编号，由服务端校验权限。 -->
 						<form method="POST" action="?/approve">
 							<input type="hidden" name="actorId" value={$currentUserState?.id ?? ''} />
 							<input type="hidden" name="applicationId" value={record.id} />
@@ -262,6 +233,7 @@
 								通过
 							</button>
 						</form>
+						<!-- 驳回需要先打开弹框填写理由，再提交驳回操作。 -->
 						<button
 							type="button"
 							class="inline-flex h-8 items-center text-sm font-medium text-red-600 transition-colors hover:text-red-700 hover:underline focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:outline-none"

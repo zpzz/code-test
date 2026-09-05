@@ -4,8 +4,14 @@
  * 列表卡片与申请详情都只展示日期，统一在此格式化，避免「日期该怎么切」的逻辑散落多处、
  * 时区/格式一旦要调整得改好几处。
  */
-export function formatDate(iso: string): string {
-	return iso.slice(0, 10);
+export function formatDate(value: string | Date | null | undefined): string {
+	if (!value) return '-';
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return '-';
+
+	const pad = (n: number) => String(n).padStart(2, '0');
+	return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
 /**
@@ -14,8 +20,12 @@ export function formatDate(iso: string): string {
  * 全站时间戳都按「字面量」处理：seed / Mock / 接口数据本就是 UTC 字面量带 Z，这里直接
  * 取 UTC 分量还原出来即可，不引入时区换算，保证与存储值完全一致。
  */
-export function formatDateTime(iso: string): string {
-	const d = new Date(iso);
+export function formatDateTime(value: string | Date | null | undefined): string {
+	if (!value) return '-';
+
+	const d = new Date(value);
+	if (Number.isNaN(d.getTime())) return '-';
+
 	const pad = (n: number) => String(n).padStart(2, '0');
 	return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(
 		d.getUTCHours()

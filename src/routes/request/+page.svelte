@@ -2,17 +2,22 @@
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import Table, { type TableColumn } from '$lib/components/common/Table.svelte';
+	import { formatDate } from '$lib/format/date';
 	import { currentUserState } from '$lib/stores/user';
 	import { APPLICATION_STATUS, enumService, type ApplicationStatusValue } from '$lib/enums';
+	import {
+		applicationBudgetTotalOf,
+		applicationFieldsOf,
+		applicationRouteOf,
+		applicationSearchTextOf,
+		centsToYuan,
+		formatAmount
+	} from '$lib/utils';
 
 	let { data }: { data: PageData } = $props();
 	let allApplications = $derived(data.applications);
 
 	type Application = PageData['applications'][number];
-	type BudgetFields = {
-		legs?: Array<{ from?: string; to?: string }>;
-		budget?: Record<string, number | undefined>;
-	};
 
 	type FilterValue = 'all' | string;
 	type StatusFilter = 'all' | 'pending' | ApplicationStatusValue;
@@ -96,14 +101,7 @@
 			if (monthFilter !== 'all' && String(createdAt.getUTCMonth() + 1) !== monthFilter) return false;
 
 			if (search === '') return true;
-
-			const fields = fieldsOf(application);
-			const destinations = (fields.legs ?? [])
-				.flatMap((leg) => [leg.from, leg.to])
-				.filter(Boolean)
-				.join(' ');
-			const searchableText = `${fields.reason ?? ''} ${destinations}`.toLowerCase();
-			return searchableText.includes(search);
+			return applicationSearchTextOf(application).includes(search);
 		});
 	});
 
@@ -113,44 +111,27 @@
 		keyword = '';
 	}
 
-	function fieldsOf(application: Application): BudgetFields {
-		return application.fields as BudgetFields;
-	}
-
-	function routeOf(application: Application): string {
-		const cities: string[] = [];
-
-		for (const leg of fieldsOf(application).legs ?? []) {
-			const from = leg.from?.trim();
-			const to = leg.to?.trim();
-
-			if (from && cities[cities.length - 1] !== from) cities.push(from);
-			if (to && cities[cities.length - 1] !== to) cities.push(to);
-		}
-
-		return cities.length > 0 ? cities.join(' → ') : '-';
-	}
-
-	function budgetOf(application: Application): string {
-		const budget = fieldsOf(application).budget ?? {};
-		const total = Object.values(budget).reduce<number>(
-			(sum, value) => sum + (Number(value) || 0),
-			0
-		);
-		return `¥${total.toLocaleString('zh-CN')}`;
-	}
-
 	const columns: TableColumn<Application>[] = [
 		{ key: 'id', title: '申请编号', dataIndex: 'id', width: '18%' },
 		{
+			key: 'reason',
+			title: '出差事由',
+			render: (_, application) => applicationFieldsOf(application).reason ?? '-'
+		},
+		{
 			key: 'destination',
 			title: '目的地',
-			render: (_, application) => routeOf(application)
+			render: (_, application) => applicationRouteOf(application)
 		},
 		{
 			key: 'budget',
 			title: '预算合计',
-			render: (_, application) => budgetOf(application)
+			render: (_, application) => formatAmount(centsToYuan(applicationBudgetTotalOf(application)))
+		},
+		{
+			key: 'submittedAt',
+			title: '提交时间',
+			render: (_, application) => formatDate(application.submittedAt ?? application.createdAt)
 		},
 		{
 			key: 'status',
