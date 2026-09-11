@@ -1,15 +1,15 @@
 import { fail } from '@sveltejs/kit';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '$lib/server/db';
+import { localNow } from '$lib/format/date';
 import { APPLICATION_STATUS, USER_ROLE } from '$lib/enums';
+import {
+	resolveApprovalTransition,
+	validateRejectReason,
+	type ApprovalAction
+} from '$lib/server/approval';
+import type { Actions, PageServerLoad, RequestEvent } from './$types';
 import type { Prisma } from '@prisma/client';
-import type { Actions, PageServerLoad } from './$types';
-
-type ApprovalAction = 'approve' | 'reject';
-
-type PendingApplication = Prisma.ApplicationGetPayload<{
-	include: { applicant: { select: { managerId: true } } };
-}>;
 
 function readApplicationIds(value: FormDataEntryValue | null): string[] | null {
 	if (typeof value !== 'string') return null;
@@ -23,41 +23,17 @@ function readApplicationIds(value: FormDataEntryValue | null): string[] | null {
 	}
 }
 
-function transitionFor(
-	actor: { id: string; role: string },
-	application: PendingApplication,
-	action: ApprovalAction
-): { toStatus: string; action: ApprovalAction } | null {
-	if (
-		actor.role === USER_ROLE.manager &&
-		application.status === APPLICATION_STATUS.pendingManager &&
-		application.applicantId !== actor.id &&
-		application.applicant.managerId === actor.id
-	) {
-		return {
-			toStatus:
-				action === 'approve' ? APPLICATION_STATUS.pendingFinance : APPLICATION_STATUS.rejected,
-			action
-		};
+async function processApplications(
+	{ request, cookies }: Pick<RequestEvent, 'request' | 'cookies'>,
+	action: ApprovalAction,
+	batch = false
+) {
+	const actorId = cookies.get('applicantId');
+	if (!actorId) {
+		return fail(401, { success: false, message: '未识别当前用户，请重新切换角色后再试。' });
 	}
 
-	if (
-		actor.role === USER_ROLE.finance &&
-		application.status === APPLICATION_STATUS.pendingFinance &&
-		application.applicantId !== actor.id
-	) {
-		return {
-			toStatus: action === 'approve' ? APPLICATION_STATUS.approved : APPLICATION_STATUS.rejected,
-			action
-		};
-	}
-
-	return null;
-}
-
-async function processApplications(request: Request, action: ApprovalAction, batch = false) {
 	const formData = await request.formData();
-	const actorId = formData.get('actorId');
 	const rejectReason = String(formData.get('rejectReason') ?? '').trim();
 	const applicationIds = batch
 		? readApplicationIds(formData.get('applicationIds'))
@@ -65,12 +41,13 @@ async function processApplications(request: Request, action: ApprovalAction, bat
 			? [formData.get('applicationId') as string]
 			: null;
 
-	if (typeof actorId !== 'string' || !actorId || !applicationIds || applicationIds.length === 0) {
+	if (!applicationIds || applicationIds.length === 0) {
 		return fail(400, { success: false, message: '请选择需要审批的申请。' });
 	}
 
-	if (action === 'reject' && (!rejectReason || rejectReason.length > 200)) {
-		return fail(400, { success: false, message: '请填写 1 至 200 字的驳回理由。' });
+	if (action === 'reject') {
+		const message = validateRejectReason(rejectReason);
+		if (message) return fail(400, { success: false, message });
 	}
 
 	const actor = await prisma.user.findUnique({
@@ -78,8 +55,8 @@ async function processApplications(request: Request, action: ApprovalAction, bat
 		select: { id: true, name: true, role: true }
 	});
 
-	if (!actor || ![USER_ROLE.manager, USER_ROLE.finance].includes(actor.role)) {
-		return fail(403, { success: false, message: '当前用户没有审批权限。' });
+	if (!actor) {
+		return fail(401, { success: false, message: '未识别当前用户，请重新切换角色后再试。' });
 	}
 
 	try {
@@ -95,14 +72,14 @@ async function processApplications(request: Request, action: ApprovalAction, bat
 
 			const transitions = applications.map((application) => ({
 				application,
-				transition: transitionFor(actor, application, action)
+				transition: resolveApprovalTransition(actor, application, action)
 			}));
 
 			if (transitions.some(({ transition }) => !transition)) {
 				throw new Error('部分申请已被处理，或你没有对应的审批权限。');
 			}
 
-			const now = new Date();
+			const now = localNow();
 			for (const { application, transition } of transitions) {
 				if (!transition) continue;
 
@@ -140,13 +117,41 @@ async function processApplications(request: Request, action: ApprovalAction, bat
 	};
 }
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ cookies }) => {
+	const actorId = cookies.get('applicantId');
+	if (!actorId) {
+		return { applications: [] };
+	}
+
+	const actor = await prisma.user.findUnique({
+		where: { id: actorId },
+		select: { id: true, role: true }
+	});
+
+	if (!actor) {
+		return { applications: [] };
+	}
+
+	let where: Prisma.ApplicationWhereInput | null = null;
+	if (actor.role === USER_ROLE.manager) {
+		where = {
+			status: APPLICATION_STATUS.pendingManager,
+			applicantId: { not: actor.id },
+			applicant: { managerId: actor.id }
+		};
+	} else if (actor.role === USER_ROLE.finance) {
+		where = {
+			status: APPLICATION_STATUS.pendingFinance,
+			applicantId: { not: actor.id }
+		};
+	}
+
+	if (!where) {
+		return { applications: [] };
+	}
+
 	const applications = await prisma.application.findMany({
-		where: {
-			status: {
-				in: [APPLICATION_STATUS.pendingManager, APPLICATION_STATUS.pendingFinance]
-			}
-		},
+		where,
 		include: { applicant: { select: { managerId: true } } },
 		orderBy: [{ submittedAt: 'desc' }, { createdAt: 'desc' }]
 	});
@@ -160,7 +165,7 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	approve: ({ request }) => processApplications(request, 'approve'),
-	reject: ({ request }) => processApplications(request, 'reject'),
-	batchApprove: ({ request }) => processApplications(request, 'approve', true)
+	approve: (event) => processApplications(event, 'approve'),
+	reject: (event) => processApplications(event, 'reject'),
+	batchApprove: (event) => processApplications(event, 'approve', true)
 };
