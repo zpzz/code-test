@@ -46,21 +46,21 @@
 	});
 
 	// 切换角色：更新 localStorage 和前端状态，并强制刷新页面
-	function handleUserChange(event: Event) {
+	async function handleUserChange(event: Event) {
 		const select = event.target as HTMLSelectElement;
 		const userId = select.value;
 		const selectedUser = allUsers.find((u) => u.id === userId);
 
 		if (selectedUser) {
 			setCurrentUser(selectedUser);
-			if (currentPath !== '/request') goto('/request');
+			await goto('/request', { replaceState: true, invalidateAll: true });
 		}
 	}
 </script>
 
-<div class="flex h-screen bg-gray-100 overflow-hidden">
-	<aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
-		<div class="h-16 flex items-center px-6 border-b border-gray-100">
+<div class="flex h-screen overflow-hidden bg-gray-100">
+	<aside class="flex w-64 flex-col border-r border-gray-200 bg-white">
+		<div class="flex h-16 items-center border-b border-gray-100 px-6">
 			<h1 class="flex items-center gap-2 text-xl font-bold text-blue-600">
 				<span
 					class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white"
@@ -78,7 +78,7 @@
 					data-sveltekit-preload-data="hover"
 					class="flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors
 					{currentPath === menu.path
-						? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
+						? 'border-r-2 border-blue-600 bg-blue-50 text-blue-600'
 						: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
 				>
 					<Icon name={menu.icon} class="h-5 w-5 shrink-0" strokeWidth={1.75} />
@@ -88,15 +88,15 @@
 		</nav>
 	</aside>
 
-	<div class="flex-1 flex flex-col overflow-hidden">
-		<header class="h-16 bg-white border-b border-gray-200 flex items-center justify-end px-8">
+	<div class="flex flex-1 flex-col overflow-hidden">
+		<header class="flex h-16 items-center justify-end border-b border-gray-200 bg-white px-8">
 			<div class="flex items-center gap-4">
 				<div
-					class="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold"
+					class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 font-bold text-white"
 				>
 					{$currentUserState?.name?.charAt(0) || '未'}
 				</div>
-				<div class="leading-tight text-right">
+				<div class="text-right leading-tight">
 					<div class="text-sm font-semibold text-gray-800">
 						{$currentUserState?.name || '未登录'}
 					</div>
@@ -108,8 +108,8 @@
 				<div class="ml-2">
 					<select
 						value={$currentUserState?.id}
-						on:change={handleUserChange}
-						class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+						onchange={handleUserChange}
+						class="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm hover:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 					>
 						{#each allUsers as user}
 							<option value={user.id}>

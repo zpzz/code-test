@@ -10,6 +10,7 @@ export function initCurrentUser() {
   const stored = localStorage.getItem("currentUser");
   if (stored) {
     currentUserState.set(JSON.parse(stored) as User);
+    document.cookie = `applicantId=${JSON.parse(stored).id}; path=/; max-age=3600`;
   }
 }
 
@@ -18,5 +19,6 @@ export function setCurrentUser(user: User) {
   currentUserState.set(user);
   if (browser) {
     localStorage.setItem("currentUser", JSON.stringify(user));
+    document.cookie = `applicantId=${user.id}; path=/; max-age=3600`;
   }
 }
