@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { APPLICATION_STATUS } from '$lib/enums';
+import { localNow } from '$lib/format/date';
 import {
 	getNextSubmitStatus,
 	normalizeApplicationFields,
@@ -41,7 +42,7 @@ async function saveApplication(request: Request, intent: 'save' | 'submit') {
 		if (message) return fail(400, { message });
 	}
 
-	const now = new Date();
+	const now = localNow();
 	const submitting = intent === 'submit';
 
 	if (typeof editId === 'string' && editId) {

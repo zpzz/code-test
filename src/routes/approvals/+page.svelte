@@ -23,29 +23,7 @@
 	let selectedIds = $state<string[]>([]);
 	let rejectTarget = $state<Approval | null>(null);
 
-	let approvals = $derived.by(() => {
-		const user = $currentUserState;
-		if (!user) return [];
-
-		if (user.role === USER_ROLE.manager) {
-			return data.applications.filter(
-				(application) =>
-					application.status === APPLICATION_STATUS.pendingManager &&
-					application.applicantId !== user.id &&
-					application.applicant.managerId === user.id
-			);
-		}
-
-		if (user.role === USER_ROLE.finance) {
-			return data.applications.filter(
-				(application) =>
-					application.status === APPLICATION_STATUS.pendingFinance &&
-					application.applicantId !== user.id
-			);
-		}
-
-		return [];
-	});
+	let approvals = $derived(data.applications);
 
 	let approvalIds = $derived(approvals.map((application) => application.id));
 	let allSelected = $derived(
@@ -143,7 +121,6 @@
 			<span class="text-sm text-slate-500">已选 {selectedIds.length} 项，共 {approvals.length} 条</span>
 
 			<form method="POST" action="?/batchApprove" class="ml-auto">
-				<input type="hidden" name="actorId" value={$currentUserState?.id ?? ''} />
 				<input type="hidden" name="applicationIds" value={selectedPayload} />
 				<button
 					type="submit"
@@ -222,9 +199,8 @@
 						>
 							查看详情
 						</a>
-						<!-- 通过操作提交当前审批人的身份和申请编号，由服务端校验权限。 -->
+						<!-- 通过操作只提交申请编号，审批人身份由服务端 cookie 识别。 -->
 						<form method="POST" action="?/approve">
-							<input type="hidden" name="actorId" value={$currentUserState?.id ?? ''} />
 							<input type="hidden" name="applicationId" value={record.id} />
 							<button
 								type="submit"
@@ -249,9 +225,5 @@
 </div>
 
 {#if rejectTarget}
-	<RejectDialog
-		applicationId={rejectTarget.id}
-		actorId={$currentUserState?.id ?? ''}
-		onClose={closeRejectDialog}
-	/>
+	<RejectDialog applicationId={rejectTarget.id} onClose={closeRejectDialog} />
 {/if}

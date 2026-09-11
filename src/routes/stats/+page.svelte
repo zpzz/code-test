@@ -6,16 +6,19 @@
 	import Panel from '$lib/components/common/Panel.svelte';
 	import StatCard from '$lib/components/common/StatCard.svelte';
 	import { APPLICATION_STATUS, enumService, type ApplicationStatusValue } from '$lib/enums';
+	import { formatDate, formatYearMonth } from '$lib/format/date';
+	import {
+		applicationBudgetTotalOf,
+		applicationRouteOf,
+		centsToYuan,
+		formatAmount
+	} from '$lib/utils';
 	import Table, {
 		type TableCellContext,
 		type TableColumn
 	} from '$lib/components/common/Table.svelte';
 
 	type Application = PageData['applications'][number];
-	type TravelFields = {
-		legs?: Array<{ from?: string; to?: string }>;
-		budget?: Record<string, number | undefined>;
-	};
 
 	type StatusConfig = {
 		status: ApplicationStatusValue;
@@ -84,18 +87,22 @@
 			.filter((slice) => slice.value > 0)
 	);
 
+	// 趋势横轴按「本地墙钟月」生成：库里存的是本地墙钟字面量（见 format/date.ts 头注释），
+	// 这里必须用本地分量取当前月，否则东八区每月 1 日 0~8 点会因 UTC 日期回退而错位一个月。
 	const trendMonths = Array.from({ length: 12 }, (_, index) => {
 		const date = new Date();
-		date.setUTCDate(1);
-		date.setUTCHours(0, 0, 0, 0);
-		date.setUTCMonth(date.getUTCMonth() - (11 - index));
-		return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+		date.setDate(1);
+		date.setHours(0, 0, 0, 0);
+		date.setMonth(date.getMonth() - (11 - index));
+		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 	});
 
 	let trendPoints = $derived(
 		trendMonths.map((month) => ({
 			month,
-			count: applications.filter((application) => formatMonth(application.createdAt) === month).length
+			count: applications.filter(
+				(application) => formatYearMonth(application.createdAt) === month
+			).length
 		}))
 	);
 
@@ -157,47 +164,6 @@
 			}
 		]
 	});
-
-	function fieldsOf(application: Application): TravelFields {
-		return application.fields as TravelFields;
-	}
-
-	function routeOf(application: Application): string {
-		const cities: string[] = [];
-
-		for (const leg of fieldsOf(application).legs ?? []) {
-			const from = leg.from?.trim();
-			const to = leg.to?.trim();
-
-			if (from && cities[cities.length - 1] !== from) cities.push(from);
-			if (to && cities[cities.length - 1] !== to) cities.push(to);
-		}
-
-		return cities.length > 0 ? cities.join(' → ') : '-';
-	}
-
-	function amountOf(application: Application): string {
-		const cents = Object.values(fieldsOf(application).budget ?? {}).reduce(
-			(sum, value) => sum + (Number(value) || 0),
-			0
-		);
-		return `¥${(cents / 100).toLocaleString('zh-CN', {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2
-		})}`;
-	}
-
-	function formatMonth(value: string | Date): string {
-		const date = new Date(value);
-		return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
-	}
-
-	function formatDate(value: string | Date): string {
-		const date = new Date(value);
-		return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(
-			date.getUTCDate()
-		).padStart(2, '0')}`;
-	}
 
 	function resetFilters(): void {
 		statusFilter = 'all';
@@ -292,7 +258,8 @@
 			{#snippet cell(context: TableCellContext<Application>)}
 				{@const { column, record } = context}
 				{#if column.key === 'route'}
-					<span class="block max-w-80 truncate" title={routeOf(record)}>{routeOf(record)}</span>
+					{@const route = applicationRouteOf(record)}
+					<span class="block max-w-80 truncate" title={route}>{route}</span>
 				{:else if column.key === 'createdAt'}
 					<span class="text-slate-600">{formatDate(record.createdAt)}</span>
 				{:else if column.key === 'status'}
@@ -301,7 +268,9 @@
 						{config?.label ?? record.status}
 					</span>
 				{:else if column.key === 'amount'}
-					<span class="font-medium tabular-nums text-slate-800">{amountOf(record)}</span>
+					<span class="font-medium tabular-nums text-slate-800">
+						{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
+					</span>
 				{:else if column.key === 'action'}
 					<a
 						href={`/requests/${record.id}?from=stats`}
