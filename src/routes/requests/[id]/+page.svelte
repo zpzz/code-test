@@ -5,6 +5,8 @@
 	import RejectDialog from '../../approvals/components/RejectDialog.svelte';
 	import { currentUserState } from '$lib/stores/user';
 	import { APPLICATION_STATUS, TRANSPORT, URGENCY, USER_ROLE, enumService } from '$lib/enums';
+	import { formatDate, formatDateTime } from '$lib/format/date';
+	import { applicationBudgetTotalOf, centsToYuan, formatAmount } from '$lib/utils';
 
 	type TravelLeg = {
 		id?: string;
@@ -19,17 +21,10 @@
 		reason?: string;
 		urgency?: string;
 		legs?: TravelLeg[];
-		budget?: {
-			transport?: number;
-			hotel?: number;
-			allowance?: number;
-			other?: number;
-		};
+		budget?: Record<string, unknown>;
 		/** 预算超过 10,000 元时填写的补充说明。 */
 		budgetNote?: string;
 	};
-
-	type DateValue = string | Date | null | undefined;
 
 	let { data, form }: { data: PageData; form?: { success?: boolean; message?: string } } = $props();
 	let application = $derived(data.application);
@@ -63,9 +58,7 @@
 		{ key: 'other', label: '其他' }
 	] as const;
 
-	let totalBudget = $derived(
-		budgetItems.reduce((sum, item) => sum + (Number(budget[item.key]) || 0), 0)
-	);
+	let totalBudgetCents = $derived(applicationBudgetTotalOf(application));
 
 	let actionState = $derived.by(() => {
 		const user = $currentUserState;
@@ -178,33 +171,6 @@
 			message: '当前状态下没有可执行的操作。'
 		};
 	});
-
-	function formatDate(value: DateValue): string {
-		if (!value) return '-';
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return '-';
-
-		return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(
-			date.getUTCDate()
-		).padStart(2, '0')}`;
-	}
-
-	function formatDateTime(value: DateValue): string {
-		if (!value) return '-';
-		const date = new Date(value);
-		if (Number.isNaN(date.getTime())) return '-';
-
-		return `${formatDate(date)} ${String(date.getUTCHours()).padStart(2, '0')}:${String(
-			date.getUTCMinutes()
-		).padStart(2, '0')}`;
-	}
-
-	function formatAmount(amount: number | undefined): string {
-		return `¥${((Number(amount) || 0) / 100).toLocaleString('zh-CN', {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2
-		})}`;
-	}
 
 	function statusLabel(status: string): string {
 		return enumService.label('applicationStatus', status);
@@ -322,19 +288,25 @@
 			<div class="mt-6">
 				<div class="flex items-center gap-2">
 					<h2 class="text-sm font-semibold text-slate-900">费用预算</h2>
-					<span class="text-xs text-slate-500">合计 {formatAmount(totalBudget)}</span>
+					<span class="text-xs text-slate-500"
+						>合计 {formatAmount(centsToYuan(totalBudgetCents))}</span
+					>
 				</div>
 
 				<dl class="mt-3 divide-y divide-slate-100 border-y border-slate-200">
 					{#each budgetItems as item (item.key)}
 						<div class="flex items-center justify-between py-2.5 text-sm">
 							<dt class="text-slate-500">{item.label}</dt>
-							<dd class="font-medium text-slate-800">{formatAmount(budget[item.key])}</dd>
+							<dd class="font-medium text-slate-800">
+								{formatAmount(centsToYuan(budget[item.key]))}
+							</dd>
 						</div>
 					{/each}
 					<div class="flex items-center justify-between py-3 text-sm">
 						<dt class="font-semibold text-slate-900">合计</dt>
-						<dd class="font-semibold text-slate-900">{formatAmount(totalBudget)}</dd>
+						<dd class="font-semibold text-slate-900">
+							{formatAmount(centsToYuan(totalBudgetCents))}
+						</dd>
 					</div>
 				</dl>
 

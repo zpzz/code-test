@@ -44,17 +44,11 @@
 	let monthFilter = $state<FilterValue>('all');
 	let keyword = $state('');
 
-	let myApplications = $derived(
-		$currentUserState?.id
-			? allApplications.filter((app) => app.applicantId === $currentUserState.id)
-			: []
-	);
+	let myApplications = $derived($currentUserState?.id ? allApplications : []);
 
 	let yearOptions = $derived.by(() => {
 		const years = new Set(
-			myApplications.map((application) =>
-				String(new Date(application.createdAt).getUTCFullYear())
-			)
+			myApplications.map((application) => String(new Date(application.createdAt).getUTCFullYear()))
 		);
 		return [...years].sort((a, b) => Number(b) - Number(a));
 	});
@@ -98,7 +92,8 @@
 
 			const createdAt = new Date(application.createdAt);
 			if (yearFilter !== 'all' && String(createdAt.getUTCFullYear()) !== yearFilter) return false;
-			if (monthFilter !== 'all' && String(createdAt.getUTCMonth() + 1) !== monthFilter) return false;
+			if (monthFilter !== 'all' && String(createdAt.getUTCMonth() + 1) !== monthFilter)
+				return false;
 
 			if (search === '') return true;
 			return applicationSearchTextOf(application).includes(search);
@@ -236,7 +231,7 @@
 
 			<div class="relative">
 				<svg
-					class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"
@@ -250,7 +245,7 @@
 				</svg>
 				<input
 					bind:value={keyword}
-					class="h-9 w-60 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+					class="h-9 w-60 rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 					placeholder="搜索事由或目的地"
 					aria-label="搜索事由或目的地"
 				/>

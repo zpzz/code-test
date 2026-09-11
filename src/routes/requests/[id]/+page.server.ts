@@ -1,7 +1,15 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '$lib/server/db';
-import { APPLICATION_STATUS, USER_ROLE } from '$lib/enums';
+import { localNow } from '$lib/format/date';
+import { APPLICATION_STATUS } from '$lib/enums';
+import {
+	canCancel,
+	isApprovalRole,
+	resolveApprovalTransition,
+	validateRejectReason,
+	type ApprovalAction
+} from '$lib/server/approval';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -31,13 +39,11 @@ export const load: PageServerLoad = async ({ params }) => {
 	};
 };
 
-type ApprovalAction = 'approve' | 'reject';
-
 /**
  * 处理详情页的单条审批操作。
  *
- * 角色和当前审批状态必须同时匹配，避免通过手动修改 actorId
- * 或直接访问详情页绕过前端按钮限制。
+ * 权限判定统一走 $lib/server/approval 的状态机（与待审批列表同一入口），
+ * 避免两处手写角色/状态/经理关系判断漂移；这里只负责参数解析与落库跳转。
  */
 async function processApproval(
 	params: { id: string },
@@ -52,8 +58,9 @@ async function processApproval(
 		return fail(400, { success: false, message: '未识别当前用户，请重新切换角色后再试。' });
 	}
 
-	if (action === 'reject' && (!rejectReason || rejectReason.length > 200)) {
-		return fail(400, { success: false, message: '请填写 1 至 200 字的驳回理由。' });
+	if (action === 'reject') {
+		const message = validateRejectReason(rejectReason);
+		if (message) return fail(400, { success: false, message });
 	}
 
 	const [actor, application] = await Promise.all([
@@ -67,7 +74,7 @@ async function processApproval(
 		})
 	]);
 
-	if (!actor || ![USER_ROLE.manager, USER_ROLE.finance].includes(actor.role)) {
+	if (!actor || !isApprovalRole(actor.role)) {
 		return fail(403, { success: false, message: '当前用户没有审批权限。' });
 	}
 
@@ -75,27 +82,13 @@ async function processApproval(
 		return fail(404, { success: false, message: '未找到该申请。' });
 	}
 
-	const isManagerApproval =
-		actor.role === USER_ROLE.manager &&
-		application.status === APPLICATION_STATUS.pendingManager &&
-		application.applicantId !== actor.id &&
-		application.applicant.managerId === actor.id;
-	const isFinanceApproval =
-		actor.role === USER_ROLE.finance &&
-		application.status === APPLICATION_STATUS.pendingFinance &&
-		application.applicantId !== actor.id;
-
-	if (!isManagerApproval && !isFinanceApproval) {
+	const transition = resolveApprovalTransition(actor, application, action);
+	if (!transition) {
 		return fail(403, { success: false, message: '当前角色没有处理这份申请的权限。' });
 	}
 
-	const nextStatus =
-		action === 'reject'
-			? APPLICATION_STATUS.rejected
-			: isManagerApproval
-				? APPLICATION_STATUS.pendingFinance
-				: APPLICATION_STATUS.approved;
-	const now = new Date();
+	const nextStatus = transition.toStatus;
+	const now = localNow();
 
 	await prisma.application.update({
 		where: { id: application.id },
@@ -143,19 +136,15 @@ export const actions: Actions = {
 			return fail(404, { message: '未找到该申请。' });
 		}
 
-		if (application.applicantId !== actor.id) {
-			return fail(403, { message: '只有申请人可以撤销这份申请。' });
-		}
-
-		if (
-			![APPLICATION_STATUS.pendingManager, APPLICATION_STATUS.pendingFinance].includes(
-				application.status
-			)
-		) {
+		// 撤销权限：只有申请人可撤销处于待审批流转中的申请（见 $lib/server/approval）。
+		if (!canCancel(actor.id, application)) {
+			if (application.applicantId !== actor.id) {
+				return fail(403, { message: '只有申请人可以撤销这份申请。' });
+			}
 			return fail(400, { message: '当前状态不可撤销。' });
 		}
 
-		const now = new Date();
+		const now = localNow();
 
 		await prisma.application.update({
 			where: { id: application.id },
