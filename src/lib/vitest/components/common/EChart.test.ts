@@ -1,6 +1,6 @@
 import { cleanup, render } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EChartsOption } from 'echarts';
+import type { EChartOption } from '$lib/components/common/EChart.svelte';
 import { tick } from 'svelte';
 import EChart from '$lib/components/common/EChart.svelte';
 
@@ -23,7 +23,15 @@ const resizeObserverMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/environment', () => ({ browser: true }));
-vi.mock('echarts', () => ({ init: echartsMocks.init }));
+vi.mock('echarts/core', () => ({ init: echartsMocks.init, use: vi.fn() }));
+vi.mock('echarts/renderers', () => ({ CanvasRenderer: {} }));
+vi.mock('echarts/charts', () => ({ PieChart: {}, LineChart: {} }));
+vi.mock('echarts/components', () => ({
+	GridComponent: {},
+	TooltipComponent: {},
+	LegendComponent: {}
+}));
+vi.mock('echarts/features', () => ({ LabelLayout: {} }));
 
 class ResizeObserverMock {
 	constructor(_callback: ResizeObserverCallback) {}
@@ -46,7 +54,7 @@ describe('EChart', () => {
 	});
 
 	it('initializes the chart with the supplied option and height', () => {
-		const option: EChartsOption = { series: [{ type: 'line', data: [1, 2, 3] }] };
+		const option: EChartOption = { series: [{ type: 'line', data: [1, 2, 3] }] };
 		const onReady = vi.fn();
 		const { container } = render(EChart, {
 			props: { option, height: '280px', onReady }
@@ -60,8 +68,8 @@ describe('EChart', () => {
 	});
 
 	it('updates the existing chart instance when its option changes', async () => {
-		const initialOption: EChartsOption = { series: [{ type: 'line', data: [1] }] };
-		const nextOption: EChartsOption = { series: [{ type: 'line', data: [2] }] };
+		const initialOption: EChartOption = { series: [{ type: 'line', data: [1] }] };
+		const nextOption: EChartOption = { series: [{ type: 'line', data: [2] }] };
 		const view = render(EChart, { props: { option: initialOption } });
 
 		await tick();

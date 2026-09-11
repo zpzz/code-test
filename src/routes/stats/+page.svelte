@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { EChartsOption } from 'echarts';
+	import type { EChartOption } from '$lib/components/common/EChart.svelte';
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import EChart from '$lib/components/common/EChart.svelte';
@@ -99,7 +99,7 @@
 		}))
 	);
 
-	let pieOption = $derived<EChartsOption>({
+	let pieOption = $derived<EChartOption>({
 		color: statusSlices.map((slice) => slice.color),
 		tooltip: {
 			trigger: 'item',
@@ -127,7 +127,7 @@
 		]
 	});
 
-	let trendOption = $derived<EChartsOption>({
+	let trendOption = $derived<EChartOption>({
 		color: ['#6366f1'],
 		tooltip: { trigger: 'axis', valueFormatter: (value) => `${value ?? 0} 单` },
 		grid: { top: 28, right: 20, bottom: 28, left: 16, containLabel: true },
