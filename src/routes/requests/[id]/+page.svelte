@@ -367,7 +367,7 @@
 					提交申请
 				</button>
 				<a
-					href={`/create?edit=${application.id}`}
+					href={`/create/${application.type}/basic?edit=${application.id}`}
 					class="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
 				>
 					重新编辑
@@ -383,7 +383,7 @@
 			</div>
 		{:else if actionState.canReedit}
 			<a
-				href={`/create?edit=${application.id}`}
+				href={`/create/${application.type}/basic?edit=${application.id}`}
 				class="inline-flex h-9 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
 			>
 				重新编辑
