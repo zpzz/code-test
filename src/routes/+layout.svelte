@@ -44,7 +44,10 @@
 		const routeType = page.url.pathname.match(/^\/create\/([^/]+)/)?.[1];
 		if (applicationTypeOptions.some((option) => option.value === routeType)) {
 			currentApplicationType = routeType as ApplicationTypeValue;
-			if (browser) localStorage.setItem('currentApplicationType', currentApplicationType);
+			if (browser) {
+				localStorage.setItem('currentApplicationType', currentApplicationType);
+				document.cookie = `currentApplicationType=${currentApplicationType}; path=/; max-age=31536000`;
+			}
 		}
 	});
 
@@ -85,8 +88,9 @@
 		const select = event.currentTarget as HTMLSelectElement;
 		const type = select.value as ApplicationTypeValue;
 		localStorage.setItem('currentApplicationType', type);
+		document.cookie = `currentApplicationType=${type}; path=/; max-age=31536000`;
 		currentApplicationType = type;
-		await goto(`/create/${type}/basic`, { replaceState: true });
+		await goto('/request', { replaceState: true, invalidateAll: true });
 	}
 </script>
 

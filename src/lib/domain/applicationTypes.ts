@@ -67,6 +67,12 @@ export type ApplicationTypeDef = {
 	label: string;
 	mark: string;
 	idPrefix: string;
+	list: {
+		reasonTitle: string;
+		detailTitle: string;
+		amountTitle: string;
+		searchPlaceholder: string;
+	};
 	steps: StepDef[];
 	typeRefine?: (fields: Record<string, unknown>) => string | null;
 };
@@ -96,6 +102,12 @@ export const APPLICATION_TYPES: Record<ApplicationType, ApplicationTypeDef> = {
 		label: '差旅申请',
 		mark: '差',
 		idPrefix: 'TR',
+		list: {
+			reasonTitle: '出差事由',
+			detailTitle: '目的地',
+			amountTitle: '预算合计',
+			searchPlaceholder: '搜索事由或目的地'
+		},
 		typeRefine: checkBudgetTotal,
 		steps: [
 			{
@@ -174,6 +186,12 @@ export const APPLICATION_TYPES: Record<ApplicationType, ApplicationTypeDef> = {
 		label: '请假申请',
 		mark: '请',
 		idPrefix: 'LV',
+		list: {
+			reasonTitle: '请假事由',
+			detailTitle: '请假时间',
+			amountTitle: '请假类型',
+			searchPlaceholder: '搜索请假事由或时间'
+		},
 		steps: [
 			{
 				slug: 'basic',

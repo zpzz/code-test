@@ -3,34 +3,17 @@
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import RejectDialog from '../../approvals/components/RejectDialog.svelte';
+	import DynamicDetail from '$lib/components/form/DynamicDetail.svelte';
+	import { getApplicationType, type FieldDef } from '$lib/domain/applicationTypes';
 	import { currentUserState } from '$lib/stores/user';
-	import { APPLICATION_STATUS, TRANSPORT, URGENCY, USER_ROLE, enumService } from '$lib/enums';
-	import { formatDate, formatDateTime } from '$lib/format/date';
-	import { applicationBudgetTotalOf, centsToYuan, formatAmount } from '$lib/utils';
-
-	type TravelLeg = {
-		id?: string;
-		from?: string;
-		to?: string;
-		departDate?: string;
-		returnDate?: string;
-		transport?: string;
-	};
-
-	type TravelFields = {
-		reason?: string;
-		urgency?: string;
-		legs?: TravelLeg[];
-		budget?: Record<string, unknown>;
-		/** 预算超过 10,000 元时填写的补充说明。 */
-		budgetNote?: string;
-	};
+	import { APPLICATION_STATUS, USER_ROLE, enumService } from '$lib/enums';
+	import { formatDateTime } from '$lib/format/date';
+	import type { ApplicationFields } from '$lib/utils/application-display';
 
 	let { data, form }: { data: PageData; form?: { success?: boolean; message?: string } } = $props();
 	let application = $derived(data.application);
-	let fields = $derived(application.fields as TravelFields);
-	let legs = $derived(fields.legs ?? []);
-	let budget = $derived(fields.budget ?? {});
+	let fields = $derived(application.fields as ApplicationFields & Record<string, unknown>);
+	let definition = $derived(getApplicationType(application.type));
 	let showRejectDialog = $state(false);
 	let backLink = $derived.by(() => {
 		switch (page.url.searchParams.get('from')) {
@@ -50,15 +33,6 @@
 		cancel: '撤销申请',
 		reedit: '重新编辑'
 	};
-
-	const budgetItems = [
-		{ key: 'transport', label: '交通' },
-		{ key: 'hotel', label: '住宿' },
-		{ key: 'allowance', label: '补贴' },
-		{ key: 'other', label: '其他' }
-	] as const;
-
-	let totalBudgetCents = $derived(applicationBudgetTotalOf(application));
 
 	let actionState = $derived.by(() => {
 		const user = $currentUserState;
@@ -175,6 +149,17 @@
 	function statusLabel(status: string): string {
 		return enumService.label('applicationStatus', status);
 	}
+
+	function detailValue(field: FieldDef): unknown {
+		if (field.kind === 'dateRange') {
+			return fields[field.key] ?? {
+				[field.fromKey]: fields[field.fromKey],
+				[field.toKey]: fields[field.toKey]
+			};
+		}
+
+		return fields[field.key];
+	}
 </script>
 
 <a
@@ -185,7 +170,7 @@
 	{backLink.label}
 </a>
 
-<PageHeader title="申请详情" description={`单号 ${application.id}`}>
+<PageHeader title={`${definition.label}详情`} description={`单号 ${application.id}`}>
 	{#snippet actions()}
 		<span
 			class={enumService.className(application.status)}
@@ -207,118 +192,21 @@
 {/if}
 
 <div class="space-y-4">
-	<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-		<div class="p-5 sm:p-6">
-			<h2 class="text-sm font-semibold text-slate-900">基本信息</h2>
-
-			<div class="mt-4 grid gap-x-12 gap-y-5 lg:grid-cols-2">
-				<div class="space-y-5">
-					<div>
-						<p class="text-xs text-slate-500">出差事由</p>
-						<p class="mt-1 text-sm leading-6 text-slate-900">{fields.reason || '-'}</p>
-					</div>
-					<div>
-						<p class="text-xs text-slate-500">紧急程度</p>
-						<p class="mt-1 text-sm text-slate-900">
-							{enumService.label('urgency', fields.urgency ?? URGENCY.normal)}
-						</p>
-					</div>
-					<div>
-						<p class="text-xs text-slate-500">提交时间</p>
-						<p class="mt-1 text-sm text-slate-900">{formatDate(application.submittedAt)}</p>
+	{#each definition.steps.filter((step) => step.kind === 'form') as step (step.slug)}
+		<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+			<div class="p-5 sm:p-6">
+				<div class="mb-4">
+					<h2 class="text-sm font-semibold text-slate-900">{step.title}</h2>
+					<p class="mt-1 text-xs text-slate-500">{step.description}</p>
+				</div>
+					<div class="space-y-5">
+						{#each step.fields as field (field.key)}
+							<DynamicDetail {field} value={detailValue(field)} />
+						{/each}
 					</div>
 				</div>
-
-				<div class="space-y-5">
-					<div>
-						<p class="text-xs text-slate-500">申请人</p>
-						<p class="mt-1 text-sm text-slate-900">
-							{application.applicantName} · {application.department}
-						</p>
-					</div>
-					<div>
-						<p class="text-xs text-slate-500">创建时间</p>
-						<p class="mt-1 text-sm text-slate-900">{formatDate(application.createdAt)}</p>
-					</div>
-				</div>
-			</div>
-
-			<div class="mt-7">
-				<div class="flex items-center gap-2">
-					<h2 class="text-sm font-semibold text-slate-900">行程明细</h2>
-					<span class="text-xs text-slate-500">共 {legs.length} 段</span>
-				</div>
-
-				<div class="mt-3 overflow-x-auto">
-					<table class="min-w-[46rem] w-full text-left text-sm">
-						<thead class="border-y border-slate-200 text-xs font-medium text-slate-500">
-							<tr>
-								<th scope="col" class="px-3 py-3 font-medium">#</th>
-								<th scope="col" class="px-3 py-3 font-medium">出发地</th>
-								<th scope="col" class="px-3 py-3 font-medium">目的地</th>
-								<th scope="col" class="px-3 py-3 font-medium">出发日期</th>
-								<th scope="col" class="px-3 py-3 font-medium">返回日期</th>
-								<th scope="col" class="px-3 py-3 font-medium">交通方式</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-slate-100 text-slate-800">
-							{#if legs.length === 0}
-								<tr>
-									<td colspan="6" class="px-3 py-8 text-center text-slate-400">暂无行程信息</td>
-								</tr>
-							{:else}
-								{#each legs as leg, index (leg.id ?? `${leg.from}-${leg.to}-${index}`)}
-									<tr>
-										<td class="px-3 py-3">{index + 1}</td>
-										<td class="px-3 py-3">{leg.from || '-'}</td>
-										<td class="px-3 py-3">{leg.to || '-'}</td>
-										<td class="px-3 py-3">{formatDate(leg.departDate)}</td>
-										<td class="px-3 py-3">{formatDate(leg.returnDate)}</td>
-										<td class="px-3 py-3">
-											{enumService.label('transport', leg.transport ?? TRANSPORT.other)}
-										</td>
-									</tr>
-								{/each}
-							{/if}
-						</tbody>
-					</table>
-				</div>
-			</div>
-
-			<div class="mt-6">
-				<div class="flex items-center gap-2">
-					<h2 class="text-sm font-semibold text-slate-900">费用预算</h2>
-					<span class="text-xs text-slate-500"
-						>合计 {formatAmount(centsToYuan(totalBudgetCents))}</span
-					>
-				</div>
-
-				<dl class="mt-3 divide-y divide-slate-100 border-y border-slate-200">
-					{#each budgetItems as item (item.key)}
-						<div class="flex items-center justify-between py-2.5 text-sm">
-							<dt class="text-slate-500">{item.label}</dt>
-							<dd class="font-medium text-slate-800">
-								{formatAmount(centsToYuan(budget[item.key]))}
-							</dd>
-						</div>
-					{/each}
-					<div class="flex items-center justify-between py-3 text-sm">
-						<dt class="font-semibold text-slate-900">合计</dt>
-						<dd class="font-semibold text-slate-900">
-							{formatAmount(centsToYuan(totalBudgetCents))}
-						</dd>
-					</div>
-				</dl>
-
-				<div class="mt-4">
-					<p class="text-xs text-slate-500">预算说明</p>
-					<p class="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-						{fields.budgetNote?.trim() || '-'}
-					</p>
-				</div>
-			</div>
-		</div>
-	</section>
+			</section>
+	{/each}
 
 	<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
 		<div class="border-b border-slate-200 px-5 py-4 sm:px-6">
