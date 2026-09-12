@@ -1,3 +1,5 @@
+import { enumService } from '$lib/enums';
+
 /**
  * 仅包含展示层会用到的申请字段。
  */
@@ -5,6 +7,10 @@ export type ApplicationFields = {
 	reason?: string;
 	legs?: Array<{ from?: string; to?: string }>;
 	budget?: Record<string, number | undefined>;
+	leaveType?: string;
+	leaveStart?: string;
+	leaveEnd?: string;
+	leaveRange?: { leaveStart?: string; leaveEnd?: string };
 };
 
 type ApplicationLike = {
@@ -44,6 +50,25 @@ export function applicationBudgetTotalOf(application: ApplicationLike): number {
 }
 
 /**
+ * 返回请假申请的日期范围。
+ */
+export function applicationLeaveRangeOf(application: ApplicationLike): string {
+	const fields = applicationFieldsOf(application);
+	const start = fields.leaveRange?.leaveStart ?? fields.leaveStart;
+	const end = fields.leaveRange?.leaveEnd ?? fields.leaveEnd;
+
+	return start && end ? `${start} 至 ${end}` : start || end || '-';
+}
+
+/**
+ * 返回请假类型。
+ */
+export function applicationLeaveTypeOf(application: ApplicationLike): string {
+	const leaveType = applicationFieldsOf(application).leaveType;
+	return leaveType ? enumService.label('leaveType', leaveType) : '-';
+}
+
+/**
  * 提取可搜索文本，供列表筛选使用。
  */
 export function applicationSearchTextOf(application: ApplicationLike): string {
@@ -53,5 +78,5 @@ export function applicationSearchTextOf(application: ApplicationLike): string {
 		.filter(Boolean)
 		.join(' ');
 
-	return `${fields.reason ?? ''} ${destinations}`.toLowerCase();
+	return `${fields.reason ?? ''} ${destinations} ${applicationLeaveRangeOf(application)} ${fields.leaveType ?? ''}`.toLowerCase();
 }

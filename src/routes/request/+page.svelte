@@ -5,9 +5,12 @@
 	import { formatDate } from '$lib/format/date';
 	import { currentUserState } from '$lib/stores/user';
 	import { APPLICATION_STATUS, enumService, type ApplicationStatusValue } from '$lib/enums';
+	import { APPLICATION_TYPES, type ApplicationType } from '$lib/domain/applicationTypes';
 	import {
 		applicationBudgetTotalOf,
 		applicationFieldsOf,
+		applicationLeaveRangeOf,
+		applicationLeaveTypeOf,
 		applicationRouteOf,
 		applicationSearchTextOf,
 		centsToYuan,
@@ -16,6 +19,8 @@
 
 	let { data }: { data: PageData } = $props();
 	let allApplications = $derived(data.applications);
+	const applicationType = $derived((data.applicationType ?? 'travel') as ApplicationType);
+	const listConfig = $derived(APPLICATION_TYPES[applicationType].list);
 
 	type Application = PageData['applications'][number];
 
@@ -106,22 +111,28 @@
 		keyword = '';
 	}
 
-	const columns: TableColumn<Application>[] = [
+	const columns = $derived<TableColumn<Application>[]>([
 		{ key: 'id', title: '申请编号', dataIndex: 'id', width: '18%' },
 		{
 			key: 'reason',
-			title: '出差事由',
+			title: listConfig.reasonTitle,
 			render: (_, application) => applicationFieldsOf(application).reason ?? '-'
 		},
 		{
 			key: 'destination',
-			title: '目的地',
-			render: (_, application) => applicationRouteOf(application)
+			title: listConfig.detailTitle,
+			render: (_, application) =>
+				applicationType === 'leave'
+					? applicationLeaveRangeOf(application)
+					: applicationRouteOf(application)
 		},
 		{
 			key: 'budget',
-			title: '预算合计',
-			render: (_, application) => formatAmount(centsToYuan(applicationBudgetTotalOf(application)))
+			title: listConfig.amountTitle,
+			render: (_, application) =>
+				applicationType === 'leave'
+					? applicationLeaveTypeOf(application)
+					: formatAmount(centsToYuan(applicationBudgetTotalOf(application)))
 		},
 		{
 			key: 'submittedAt',
@@ -148,7 +159,7 @@
 			render: () => '查看详情',
 			href: (application) => `/requests/${application.id}?from=requests`
 		}
-	];
+	]);
 </script>
 
 <div class="min-h-full">
@@ -246,8 +257,8 @@
 				<input
 					bind:value={keyword}
 					class="h-9 w-60 rounded-lg border border-slate-200 bg-white pr-3 pl-9 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-					placeholder="搜索事由或目的地"
-					aria-label="搜索事由或目的地"
+					placeholder={listConfig.searchPlaceholder}
+					aria-label={listConfig.searchPlaceholder}
 				/>
 			</div>
 

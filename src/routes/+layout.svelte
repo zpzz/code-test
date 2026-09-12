@@ -2,10 +2,11 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import Icon, { type IconName } from '$lib/components/common/Icon.svelte';
 	import { currentUserState, initCurrentUser, setCurrentUser } from '$lib/stores/user';
-	import { USER_ROLE, enumService } from '$lib/enums';
+	import { APPLICATION_TYPE, USER_ROLE, enumService, type ApplicationTypeValue } from '$lib/enums';
 
 	type NavigationItem = {
 		label: string;
@@ -24,15 +25,41 @@
 	onMount(() => {
 		initCurrentUser();
 		if (!$currentUserState && allUsers[0]) setCurrentUser(allUsers[0]);
+
+		const storedType = localStorage.getItem('currentApplicationType');
+		if (
+			storedType &&
+			applicationTypeOptions.some((option) => option.value === storedType) &&
+			!page.url.pathname.startsWith('/create/')
+		) {
+			currentApplicationType = storedType as ApplicationTypeValue;
+		}
 	});
 
 	let currentPath = $derived(page.url.pathname);
+	const applicationTypeOptions = enumService.options('applicationType');
+	let currentApplicationType = $state<ApplicationTypeValue>(APPLICATION_TYPE.travel);
+
+	$effect(() => {
+		const routeType = page.url.pathname.match(/^\/create\/([^/]+)/)?.[1];
+		if (applicationTypeOptions.some((option) => option.value === routeType)) {
+			currentApplicationType = routeType as ApplicationTypeValue;
+			if (browser) {
+				localStorage.setItem('currentApplicationType', currentApplicationType);
+				document.cookie = `currentApplicationType=${currentApplicationType}; path=/; max-age=31536000`;
+			}
+		}
+	});
 
 	// 菜单权限逻辑
 	let menus = $derived.by(() => {
 		const role = $currentUserState?.role;
 		const myApplication: NavigationItem = { label: '我的申请', path: '/request', icon: 'inbox' };
-		const createApplication: NavigationItem = { label: '发起申请', path: '/create', icon: 'plus' };
+		const createApplication: NavigationItem = {
+			label: '发起申请',
+			path: `/create/${currentApplicationType}/basic`,
+			icon: 'plus'
+		};
 		const approvalMenu: NavigationItem = { label: '待我审批', path: '/approvals', icon: 'check' };
 		const statsMenu: NavigationItem = { label: '统计报表', path: '/stats', icon: 'chart' };
 
@@ -56,19 +83,38 @@
 			await goto('/request', { replaceState: true, invalidateAll: true });
 		}
 	}
+
+	async function handleApplicationTypeChange(event: Event) {
+		const select = event.currentTarget as HTMLSelectElement;
+		const type = select.value as ApplicationTypeValue;
+		localStorage.setItem('currentApplicationType', type);
+		document.cookie = `currentApplicationType=${type}; path=/; max-age=31536000`;
+		currentApplicationType = type;
+		await goto('/request', { replaceState: true, invalidateAll: true });
+	}
 </script>
 
 <div class="flex h-screen overflow-hidden bg-gray-100">
 	<aside class="flex w-64 flex-col border-r border-gray-200 bg-white">
 		<div class="flex h-16 items-center border-b border-gray-100 px-6">
-			<h1 class="flex items-center gap-2 text-xl font-bold text-blue-600">
+			<div class="flex items-center gap-2 text-xl font-bold text-blue-600">
 				<span
 					class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white"
 				>
-					差
+					{applicationTypeOptions.find((option) => option.value === currentApplicationType)?.label.charAt(0) ??
+						'申'}
 				</span>
-				<span>差旅申请</span>
-			</h1>
+				<select
+					value={currentApplicationType}
+					onchange={handleApplicationTypeChange}
+					aria-label="选择申请类型"
+					class="max-w-36 cursor-pointer border-0 bg-transparent p-0 pr-5 text-base font-bold text-blue-600 outline-none focus:ring-0"
+				>
+					{#each applicationTypeOptions as option (option.value)}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+			</div>
 		</div>
 
 		<nav class="flex-1 py-4">

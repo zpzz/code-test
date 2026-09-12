@@ -1,10 +1,11 @@
 <script lang="ts">
 	type Props = {
 		applicationId: string;
+		actorId?: string;
 		onClose: () => void;
 	};
 
-	let { applicationId, onClose }: Props = $props();
+	let { applicationId, actorId, onClose }: Props = $props();
 	let rejectReason = $state('');
 	let rejectReasonLength = $derived(rejectReason.trim().length);
 </script>
@@ -16,6 +17,9 @@
 		class="w-full max-w-md rounded-xl bg-white p-5 shadow-xl shadow-slate-900/20"
 	>
 		<input type="hidden" name="applicationId" value={applicationId} />
+		{#if actorId}
+			<input type="hidden" name="actorId" value={actorId} />
+		{/if}
 
 		<div class="flex items-start justify-between gap-4">
 			<div>

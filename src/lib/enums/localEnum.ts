@@ -71,14 +71,34 @@ export const transportOptions = [
 	{ label: '其他', value: 'other' }
 ] as const satisfies readonly LocalEnumOption[];
 
+export const applicationTypeOptions = [
+	{ label: '差旅申请', value: 'travel' },
+	{ label: '请假申请', value: 'leave' }
+] as const satisfies readonly LocalEnumOption[];
+
+export const leaveTypeOptions = [
+	{ label: '年假', value: 'annual' },
+	{ label: '病假', value: 'sick' },
+	{ label: '事假', value: 'personal' }
+] as const satisfies readonly LocalEnumOption[];
+
 export const localEnum = {
 	applicationStatus: applicationStatusOptions,
 	applicationStatusColor: applicationStatusColorOptions,
 	applicationStatusClass: applicationStatusClassOptions,
 	role: roleOptions,
 	urgency: urgencyOptions,
-	transport: transportOptions
+	transport: transportOptions,
+	applicationType: applicationTypeOptions,
+	leaveType: leaveTypeOptions
 } as const;
+
+export const APPLICATION_TYPE = {
+	travel: 'travel',
+	leave: 'leave'
+} as const;
+
+export type ApplicationTypeValue = (typeof APPLICATION_TYPE)[keyof typeof APPLICATION_TYPE];
 
 export const APPLICATION_STATUS = {
 	draft: 'draft',

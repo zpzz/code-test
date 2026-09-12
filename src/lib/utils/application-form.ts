@@ -1,4 +1,11 @@
-import { APPLICATION_STATUS, TRANSPORT, URGENCY, USER_ROLE } from '$lib/enums';
+import {
+	APPLICATION_STATUS,
+	TRANSPORT,
+	URGENCY,
+	USER_ROLE,
+	type ApplicationStatusValue,
+	type TransportValue
+} from '$lib/enums';
 
 /**
  * 页面提交的行程字段。
@@ -23,6 +30,14 @@ export type DraftFields = {
 	legs?: DraftLeg[];
 	budget?: Record<string, unknown>;
 	budgetNote?: string;
+	leaveType?: string;
+	leaveRange?: {
+		leaveStart?: string;
+		leaveEnd?: string;
+	};
+	leaveStart?: string;
+	leaveEnd?: string;
+	note?: string;
 };
 
 /**
@@ -51,9 +66,18 @@ export type NormalizedFields = {
 	}>;
 	budget: NormalizedBudget;
 	budgetNote: string;
+	leaveType?: string;
+	leaveStart?: string;
+	leaveEnd?: string;
+	note?: string;
 };
 
-const transportValues = new Set(Object.values(TRANSPORT));
+const transportValues = new Set<string>(Object.values(TRANSPORT));
+
+function normalizeTransport(value: unknown): TransportValue {
+	const transport = String(value ?? '');
+	return transportValues.has(transport) ? (transport as TransportValue) : TRANSPORT.train;
+}
 
 /**
  * 从 FormData 中读取页面序列化的申请字段。
@@ -86,6 +110,7 @@ export function yuanToCents(value: unknown): number {
  */
 export function normalizeApplicationFields(fields: DraftFields): NormalizedFields {
 	const budget = fields.budget ?? {};
+	const leaveRange = fields.leaveRange ?? {};
 
 	return {
 		reason: String(fields.reason ?? '').trim(),
@@ -96,9 +121,7 @@ export function normalizeApplicationFields(fields: DraftFields): NormalizedField
 			to: String(leg.to ?? '').trim(),
 			departDate: String(leg.departDate ?? ''),
 			returnDate: String(leg.returnDate ?? ''),
-			transport: transportValues.has(String(leg.transport))
-				? String(leg.transport)
-				: TRANSPORT.train
+			transport: normalizeTransport(leg.transport)
 		})),
 		budget: {
 			transport: yuanToCents(budget.transport),
@@ -106,7 +129,11 @@ export function normalizeApplicationFields(fields: DraftFields): NormalizedField
 			allowance: yuanToCents(budget.allowance),
 			other: yuanToCents(budget.other)
 		},
-		budgetNote: String(fields.budgetNote ?? '').trim()
+		budgetNote: String(fields.budgetNote ?? '').trim(),
+		leaveType: String(fields.leaveType ?? '').trim(),
+		leaveStart: String(leaveRange.leaveStart ?? fields.leaveStart ?? ''),
+		leaveEnd: String(leaveRange.leaveEnd ?? fields.leaveEnd ?? ''),
+		note: String(fields.note ?? '').trim()
 	};
 }
 
@@ -115,9 +142,19 @@ export function normalizeApplicationFields(fields: DraftFields): NormalizedField
  *
  * 保存草稿不要求通过这些校验，只有提交 action 会调用此方法。
  */
-export function validateApplicationForSubmit(fields: NormalizedFields): string | null {
-	if (fields.reason.length < 10 || fields.reason.length > 200) {
-		return '出差事由请填写 10 至 200 个字';
+export function validateApplicationForSubmit(
+	fields: NormalizedFields,
+	type: 'travel' | 'leave' = 'travel'
+): string | null {
+	if (fields.reason.length < 5 || fields.reason.length > 200) {
+		return '申请事由请填写 5 至 200 个字';
+	}
+
+	if (type === 'leave') {
+		if (!fields.leaveType) return '请选择请假类型';
+		if (!fields.leaveStart || !fields.leaveEnd) return '请填写完整的请假时间';
+		if (fields.leaveEnd < fields.leaveStart) return '请假结束日期不能早于开始日期';
+		return null;
 	}
 
 	if (fields.legs.length === 0) return '请至少添加一段行程';
@@ -142,7 +179,7 @@ export function validateApplicationForSubmit(fields: NormalizedFields): string |
  *
  * 经理跳过主管审批，直接进入财务审批。
  */
-export function getNextSubmitStatus(role: string) {
+export function getNextSubmitStatus(role: string): ApplicationStatusValue {
 	return role === USER_ROLE.manager
 		? APPLICATION_STATUS.pendingFinance
 		: APPLICATION_STATUS.pendingManager;
