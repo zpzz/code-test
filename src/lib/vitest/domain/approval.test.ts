@@ -5,7 +5,7 @@ import {
 	isApprovalRole,
 	resolveApprovalTransition,
 	validateRejectReason
-} from '$lib/server/approval';
+} from '$lib/domain/approval';
 
 const manager = { id: 'manager-1', role: USER_ROLE.manager };
 const finance = { id: 'finance-1', role: USER_ROLE.finance };
