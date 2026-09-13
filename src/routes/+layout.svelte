@@ -32,10 +32,14 @@
 	let currentApplicationType = $state<ApplicationTypeValue>(
 		(data.applicationType ?? APPLICATION_TYPE.travel) as ApplicationTypeValue
 	);
+	let isChangingApplicationType = $state(false);
 
 	$effect(() => {
 		const routeType = page.url.pathname.match(/^\/create\/([^/]+)/)?.[1];
-		if (applicationTypeOptions.some((option) => option.value === routeType)) {
+		if (
+			!isChangingApplicationType &&
+			applicationTypeOptions.some((option) => option.value === routeType)
+		) {
 			currentApplicationType = routeType as ApplicationTypeValue;
 			if (browser) {
 				localStorage.setItem('currentApplicationType', currentApplicationType);
@@ -80,10 +84,20 @@
 	async function handleApplicationTypeChange(event: Event) {
 		const select = event.currentTarget as HTMLSelectElement;
 		const type = select.value as ApplicationTypeValue;
-		localStorage.setItem('currentApplicationType', type);
-		document.cookie = `currentApplicationType=${type}; path=/; max-age=31536000`;
+
+		isChangingApplicationType = true;
 		currentApplicationType = type;
-		await goto('/request', { replaceState: true, invalidateAll: true });
+
+		if (browser) {
+			localStorage.setItem('currentApplicationType', type);
+			document.cookie = `currentApplicationType=${type}; path=/; max-age=31536000`;
+		}
+
+		try {
+			await goto('/request', { replaceState: true, invalidateAll: true });
+		} finally {
+			isChangingApplicationType = false;
+		}
 	}
 </script>
 

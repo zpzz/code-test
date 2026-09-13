@@ -296,7 +296,12 @@
 				</button>
 			</div>
 		{:else if actionState.canCancel}
-			<form method="POST" action="?/cancel" class="flex justify-end">
+			<form
+				method="POST"
+				action="?/cancel"
+				data-sveltekit-reload
+				class="flex justify-end"
+			>
 				<input type="hidden" name="actorId" value={$currentUserState?.id ?? ''} />
 				<button
 					type="submit"
