@@ -25,20 +25,13 @@
 	onMount(() => {
 		initCurrentUser();
 		if (!$currentUserState && allUsers[0]) setCurrentUser(allUsers[0]);
-
-		const storedType = localStorage.getItem('currentApplicationType');
-		if (
-			storedType &&
-			applicationTypeOptions.some((option) => option.value === storedType) &&
-			!page.url.pathname.startsWith('/create/')
-		) {
-			currentApplicationType = storedType as ApplicationTypeValue;
-		}
 	});
 
 	let currentPath = $derived(page.url.pathname);
 	const applicationTypeOptions = enumService.options('applicationType');
-	let currentApplicationType = $state<ApplicationTypeValue>(APPLICATION_TYPE.travel);
+	let currentApplicationType = $state<ApplicationTypeValue>(
+		(data.applicationType ?? APPLICATION_TYPE.travel) as ApplicationTypeValue
+	);
 
 	$effect(() => {
 		const routeType = page.url.pathname.match(/^\/create\/([^/]+)/)?.[1];

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { EChartOption } from '$lib/components/common/EChart.svelte';
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -6,9 +7,12 @@
 	import Panel from '$lib/components/common/Panel.svelte';
 	import StatCard from '$lib/components/common/StatCard.svelte';
 	import { APPLICATION_STATUS, enumService, type ApplicationStatusValue } from '$lib/enums';
+	import { APPLICATION_TYPES, type ApplicationType } from '$lib/domain/applicationTypes';
 	import { formatDate, formatYearMonth } from '$lib/format/date';
 	import {
 		applicationBudgetTotalOf,
+		applicationLeaveRangeOf,
+		applicationLeaveTypeOf,
 		applicationRouteOf,
 		centsToYuan,
 		formatAmount
@@ -29,9 +33,14 @@
 
 	let { data }: { data: PageData } = $props();
 	let showFilters = $state(false);
+	let isHydrated = $state(false);
 	let statusFilter = $state<'all' | ApplicationStatusValue>('all');
 	let yearFilter = $state('all');
 	let monthFilter = $state('all');
+
+	onMount(() => {
+		isHydrated = true;
+	});
 
 	const statusConfigs: StatusConfig[] = enumService.options('applicationStatus').map((option) => ({
 		status: option.value,
@@ -45,6 +54,8 @@
 	) as Record<string, StatusConfig>;
 
 	let applications = $derived(data.applications);
+	const applicationType = $derived((data.applicationType ?? 'travel') as ApplicationType);
+	const listConfig = $derived(APPLICATION_TYPES[applicationType].list);
 	let yearOptions = $derived.by(() => {
 		const years = new Set(
 			applications.map((application) => String(new Date(application.createdAt).getUTCFullYear()))
@@ -175,16 +186,20 @@
 	const columns: TableColumn<Application>[] = [
 		{ key: 'id', title: '单号', dataIndex: 'id', width: '10rem' },
 		{ key: 'applicantName', title: '申请人', dataIndex: 'applicantName', width: '9rem' },
-		{ key: 'route', title: '行程明细', width: '27%', customCell: true },
+		{ key: 'reason', title: listConfig.reasonTitle, width: '22%', customCell: true },
+		{ key: 'route', title: listConfig.detailTitle, width: '27%', customCell: true },
 		{ key: 'createdAt', title: '申请日期', width: '10rem', customCell: true },
 		{ key: 'status', title: '申请状态', width: '10rem', customCell: true },
-		{ key: 'amount', title: '申请金额', width: '10rem', align: 'right', customCell: true },
+		{ key: 'amount', title: listConfig.amountTitle, width: '10rem', align: 'right', customCell: true },
 		{ key: 'action', title: '操作', width: '6rem', customCell: true }
 	];
 </script>
 
 <div class="min-h-full">
-	<PageHeader title="统计报表" description="差旅申请数据总览与审批效率" />
+	<PageHeader
+		title="统计报表"
+		description={`${APPLICATION_TYPES[applicationType].label}数据总览与审批效率`}
+	/>
 
 	<div class="mb-4 grid gap-3 md:grid-cols-3">
 		<StatCard label="申请总数" value={total} />
@@ -202,7 +217,53 @@
 		</Panel>
 	</div>
 
-	<Panel title="申请记录" actions={recordActions}>
+	<div class="mb-2 flex justify-end gap-2" data-stats-hydrated={isHydrated ? 'true' : undefined}>
+		<button
+			type="button"
+			class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:border-blue-300 hover:text-blue-600"
+			class:border-blue-500={showFilters}
+			class:bg-blue-50={showFilters}
+			class:text-blue-600={showFilters}
+			aria-label="筛选申请记录"
+			aria-expanded={showFilters}
+			title="筛选"
+			onclick={() => (showFilters = !showFilters)}
+		>
+			<svg
+				class="h-4 w-4"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<path d="M3 5h18l-7 8v5l-4 2v-7L3 5z" />
+			</svg>
+		</button>
+		<button
+			type="button"
+			class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:border-blue-300 hover:text-blue-600"
+			aria-label="清除筛选"
+			title="清除筛选"
+			onclick={resetFilters}
+		>
+			<svg
+				class="h-4 w-4"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				aria-hidden="true"
+			>
+				<path d="M18 6 6 18M6 6l12 12" />
+			</svg>
+		</button>
+	</div>
+
+	<Panel title="申请记录">
 		{#if showFilters}
 			<div class="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50 px-5 pt-3 pb-5">
 				<label class="text-sm text-slate-600" for="stats-status">申请状态</label>
@@ -257,9 +318,15 @@
 		>
 			{#snippet cell(context: TableCellContext<Application>)}
 				{@const { column, record } = context}
-				{#if column.key === 'route'}
-					{@const route = applicationRouteOf(record)}
-					<span class="block max-w-80 truncate" title={route}>{route}</span>
+				{#if column.key === 'reason'}
+					{@const reason = String(record.fields?.reason ?? '-')}
+					<span class="block max-w-72 truncate" title={reason}>{reason}</span>
+				{:else if column.key === 'route'}
+					{@const detail =
+						applicationType === 'leave'
+							? applicationLeaveRangeOf(record)
+							: applicationRouteOf(record)}
+					<span class="block max-w-80 truncate" title={detail}>{detail}</span>
 				{:else if column.key === 'createdAt'}
 					<span class="text-slate-600">{formatDate(record.createdAt)}</span>
 				{:else if column.key === 'status'}
@@ -268,9 +335,13 @@
 						{config?.label ?? record.status}
 					</span>
 				{:else if column.key === 'amount'}
-					<span class="font-medium tabular-nums text-slate-800">
-						{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
-					</span>
+					{#if applicationType === 'leave'}
+						<span class="font-medium text-slate-800">{applicationLeaveTypeOf(record)}</span>
+					{:else}
+						<span class="font-medium tabular-nums text-slate-800">
+							{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
+						</span>
+					{/if}
 				{:else if column.key === 'action'}
 					<a
 						href={`/requests/${record.id}?from=stats`}
@@ -282,8 +353,7 @@
 			{/snippet}
 		</Table>
 	</Panel>
-
-	{#snippet recordActions()}
+<!--
 			<button
 				type="button"
 				class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:border-blue-300 hover:text-blue-600"
@@ -293,7 +363,9 @@
 				aria-label="筛选申请记录"
 				aria-expanded={showFilters}
 				title="筛选"
-				onclick={() => (showFilters = !showFilters)}
+				onclick={() => {
+					showFilters = true;
+				}}
 			>
 				<svg
 					class="h-4 w-4"
@@ -327,5 +399,5 @@
 					<path d="M18 6 6 18M6 6l12 12" />
 				</svg>
 			</button>
-	{/snippet}
+-->
 </div>
