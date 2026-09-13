@@ -1,13 +1,12 @@
 import { fail } from '@sveltejs/kit';
-import { randomUUID } from 'node:crypto';
 import { prisma } from '$lib/server/db';
-import { localNow } from '$lib/format/date';
 import { APPLICATION_STATUS, USER_ROLE } from '$lib/enums';
 import {
-	resolveApprovalTransition,
-	validateRejectReason,
-	type ApprovalAction
-} from '$lib/server/approval';
+	approveApplication,
+	batchApproveApplications,
+	rejectApplication
+} from '$lib/server/approval-service';
+import { ServiceError } from '$lib/server/service-error';
 import type { Actions, PageServerLoad, RequestEvent } from './$types';
 import type { Prisma } from '@prisma/client';
 
@@ -23,9 +22,14 @@ function readApplicationIds(value: FormDataEntryValue | null): string[] | null {
 	}
 }
 
-async function processApplications(
+/**
+ * 处理待审批页面的单条审批和批量通过 action。
+ *
+ * 具体审批规则由 approval-service 统一处理，路由层只负责参数解析和响应转换。
+ */
+async function handleApprovalAction(
 	{ request, cookies }: Pick<RequestEvent, 'request' | 'cookies'>,
-	action: ApprovalAction,
+	action: 'approve' | 'reject',
 	batch = false
 ) {
 	const actorId = cookies.get('applicantId');
@@ -45,69 +49,23 @@ async function processApplications(
 		return fail(400, { success: false, message: '请选择需要审批的申请。' });
 	}
 
-	if (action === 'reject') {
-		const message = validateRejectReason(rejectReason);
-		if (message) return fail(400, { success: false, message });
-	}
-
-	const actor = await prisma.user.findUnique({
-		where: { id: actorId },
-		select: { id: true, name: true, role: true }
-	});
-
-	if (!actor) {
-		return fail(401, { success: false, message: '未识别当前用户，请重新切换角色后再试。' });
-	}
-
 	try {
-		await prisma.$transaction(async (tx) => {
-			const applications = await tx.application.findMany({
-				where: { id: { in: applicationIds } },
-				include: { applicant: { select: { managerId: true } } }
-			});
+		if (batch) {
+			const count = await batchApproveApplications({ actorId, applicationIds });
+			return { success: true, message: `已批量通过 ${count} 份申请。` };
+		}
 
-			if (applications.length !== applicationIds.length) {
-				throw new Error('部分申请不存在或已被删除。');
-			}
-
-			const transitions = applications.map((application) => ({
-				application,
-				transition: resolveApprovalTransition(actor, application, action)
-			}));
-
-			if (transitions.some(({ transition }) => !transition)) {
-				throw new Error('部分申请已被处理，或你没有对应的审批权限。');
-			}
-
-			const now = localNow();
-			for (const { application, transition } of transitions) {
-				if (!transition) continue;
-
-				await tx.application.update({
-					where: { id: application.id },
-					data: {
-						status: transition.toStatus,
-						auditLogs: {
-							create: {
-								id: randomUUID(),
-								at: now,
-								actorId: actor.id,
-								actorName: actor.name,
-								action: transition.action,
-								fromStatus: application.status,
-								toStatus: transition.toStatus,
-								comment: transition.action === 'reject' ? rejectReason : null
-							}
-						}
-					}
-				});
-			}
-		});
-	} catch (error) {
-		return fail(400, {
-			success: false,
-			message: error instanceof Error ? error.message : '审批处理失败，请稍后重试。'
-		});
+		const applicationId = applicationIds[0];
+		if (action === 'reject') {
+			await rejectApplication({ actorId, applicationId, reason: rejectReason });
+		} else {
+			await approveApplication({ actorId, applicationId });
+		}
+	} catch (cause) {
+		if (cause instanceof ServiceError) {
+			return fail(cause.status, { success: false, message: cause.message });
+		}
+		return fail(500, { success: false, message: '审批处理失败，请稍后重试。' });
 	}
 
 	const label = action === 'approve' ? '通过' : '驳回';
@@ -165,7 +123,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-	approve: (event) => processApplications(event, 'approve'),
-	reject: (event) => processApplications(event, 'reject'),
-	batchApprove: (event) => processApplications(event, 'approve', true)
+	approve: (event) => handleApprovalAction(event, 'approve'),
+	reject: (event) => handleApprovalAction(event, 'reject'),
+	batchApprove: (event) => handleApprovalAction(event, 'approve', true)
 };

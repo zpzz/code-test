@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	const applicantId = cookies.get('applicantId');
 	const storedType = cookies.get('currentApplicationType');
 	const applicationType: ApplicationType = isApplicationType(storedType ?? '')
-		? storedType
+		? (storedType as ApplicationType)
 		: 'travel';
 	const applications = await prisma.application.findMany({
 		orderBy: { createdAt: 'desc' },
