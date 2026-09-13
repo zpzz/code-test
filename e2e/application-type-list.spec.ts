@@ -7,7 +7,8 @@ test('切换到请假申请后，我的申请页面展示请假字段', async ({
 		localStorage.clear();
 	});
 	await page.goto('/request');
-	await page.waitForLoadState('networkidle');
+	await page.waitForLoadState('load');
+	await page.waitForTimeout(500);
 
 	const applicationTypeSelect = page.getByRole('combobox', { name: '选择申请类型' });
 	await expect(applicationTypeSelect).toBeVisible();
@@ -17,10 +18,13 @@ test('切换到请假申请后，我的申请页面展示请假字段', async ({
 
 	if (currentApplicationType === 'travel') {
 		await applicationTypeSelect.selectOption('leave');
+		await expect(page.getByRole('combobox', { name: '选择申请类型' })).toHaveValue('leave');
+		// 重新加载列表页，确保表格使用服务端按 leave 类型返回的数据。
+		await page.reload();
 	}
 
 	await expect(page).toHaveURL(/\/request$/);
-	await expect(applicationTypeSelect).toHaveValue('leave');
+	await expect(page.getByRole('combobox', { name: '选择申请类型' })).toHaveValue('leave');
 
 	await expect(page.getByRole('heading', { name: '我的申请' })).toBeVisible();
 	await expect(page.getByRole('columnheader', { name: '请假事由' })).toBeVisible();

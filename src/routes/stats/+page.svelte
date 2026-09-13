@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { EChartOption } from '$lib/components/common/EChart.svelte';
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -32,9 +33,14 @@
 
 	let { data }: { data: PageData } = $props();
 	let showFilters = $state(false);
+	let isHydrated = $state(false);
 	let statusFilter = $state<'all' | ApplicationStatusValue>('all');
 	let yearFilter = $state('all');
 	let monthFilter = $state('all');
+
+	onMount(() => {
+		isHydrated = true;
+	});
 
 	const statusConfigs: StatusConfig[] = enumService.options('applicationStatus').map((option) => ({
 		status: option.value,
@@ -180,6 +186,7 @@
 	const columns: TableColumn<Application>[] = [
 		{ key: 'id', title: '单号', dataIndex: 'id', width: '10rem' },
 		{ key: 'applicantName', title: '申请人', dataIndex: 'applicantName', width: '9rem' },
+		{ key: 'reason', title: listConfig.reasonTitle, width: '22%', customCell: true },
 		{ key: 'route', title: listConfig.detailTitle, width: '27%', customCell: true },
 		{ key: 'createdAt', title: '申请日期', width: '10rem', customCell: true },
 		{ key: 'status', title: '申请状态', width: '10rem', customCell: true },
@@ -189,7 +196,10 @@
 </script>
 
 <div class="min-h-full">
-	<PageHeader title="统计报表" description={`${listConfig.label}数据总览与审批效率`} />
+	<PageHeader
+		title="统计报表"
+		description={`${APPLICATION_TYPES[applicationType].label}数据总览与审批效率`}
+	/>
 
 	<div class="mb-4 grid gap-3 md:grid-cols-3">
 		<StatCard label="申请总数" value={total} />
@@ -207,7 +217,53 @@
 		</Panel>
 	</div>
 
-	<Panel title="申请记录" actions={recordActions}>
+	<div class="mb-2 flex justify-end gap-2" data-stats-hydrated={isHydrated ? 'true' : undefined}>
+		<button
+			type="button"
+			class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:border-blue-300 hover:text-blue-600"
+			class:border-blue-500={showFilters}
+			class:bg-blue-50={showFilters}
+			class:text-blue-600={showFilters}
+			aria-label="筛选申请记录"
+			aria-expanded={showFilters}
+			title="筛选"
+			onclick={() => (showFilters = !showFilters)}
+		>
+			<svg
+				class="h-4 w-4"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<path d="M3 5h18l-7 8v5l-4 2v-7L3 5z" />
+			</svg>
+		</button>
+		<button
+			type="button"
+			class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:border-blue-300 hover:text-blue-600"
+			aria-label="清除筛选"
+			title="清除筛选"
+			onclick={resetFilters}
+		>
+			<svg
+				class="h-4 w-4"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				aria-hidden="true"
+			>
+				<path d="M18 6 6 18M6 6l12 12" />
+			</svg>
+		</button>
+	</div>
+
+	<Panel title="申请记录">
 		{#if showFilters}
 			<div class="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50 px-5 pt-3 pb-5">
 				<label class="text-sm text-slate-600" for="stats-status">申请状态</label>
@@ -262,7 +318,10 @@
 		>
 			{#snippet cell(context: TableCellContext<Application>)}
 				{@const { column, record } = context}
-				{#if column.key === 'route'}
+				{#if column.key === 'reason'}
+					{@const reason = String(record.fields?.reason ?? '-')}
+					<span class="block max-w-72 truncate" title={reason}>{reason}</span>
+				{:else if column.key === 'route'}
 					{@const detail =
 						applicationType === 'leave'
 							? applicationLeaveRangeOf(record)
@@ -294,8 +353,7 @@
 			{/snippet}
 		</Table>
 	</Panel>
-
-	{#snippet recordActions()}
+<!--
 			<button
 				type="button"
 				class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:border-blue-300 hover:text-blue-600"
@@ -305,7 +363,9 @@
 				aria-label="筛选申请记录"
 				aria-expanded={showFilters}
 				title="筛选"
-				onclick={() => (showFilters = !showFilters)}
+				onclick={() => {
+					showFilters = true;
+				}}
 			>
 				<svg
 					class="h-4 w-4"
@@ -339,5 +399,5 @@
 					<path d="M18 6 6 18M6 6l12 12" />
 				</svg>
 			</button>
-	{/snippet}
+-->
 </div>
