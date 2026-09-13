@@ -2,6 +2,18 @@
 	import type { Snippet } from 'svelte';
 	import Pagination from './Pagination.svelte';
 
+	/** 表格默认每页显示条数。 */
+	const DEFAULT_TABLE_PAGE_SIZE = 10;
+
+	/** 表格分页器默认可选的每页条数。 */
+	const DEFAULT_TABLE_PAGE_SIZE_OPTIONS = [5, 10, 20] as const;
+
+	/** 分页器至少保留一页，避免 total 为 0 时页码变成 0。 */
+	const MIN_TABLE_PAGE_COUNT = 1;
+
+	/** 表格没有数据时的默认提示。 */
+	const DEFAULT_TABLE_EMPTY_TEXT = '暂无数据';
+
 	export type TableCellValue = string | number | boolean | null | undefined;
 
 	export interface TableColumn<T extends object> {
@@ -20,9 +32,9 @@
 	type RowKey<T extends object> = keyof T | ((record: T, index: number) => string | number);
 
 	export interface TablePagination {
-		/** 初始每页条数，默认为 10 */
+		/** 初始每页条数，默认为 DEFAULT_TABLE_PAGE_SIZE */
 		pageSize?: number;
-		/** 每页条数下拉选项，默认为 5 / 10 / 20 */
+		/** 每页条数下拉选项，默认为 DEFAULT_TABLE_PAGE_SIZE_OPTIONS */
 		pageSizeOptions?: readonly number[];
 		/** 该值变化时重置到第一页，适合传入筛选条件组合 */
 		resetKey?: unknown;
@@ -54,21 +66,23 @@
 		dataSource = [],
 		columns,
 		rowKey = undefined,
-		emptyText = '暂无数据',
+		emptyText = DEFAULT_TABLE_EMPTY_TEXT,
 		pagination = false,
 		framed = true,
 		header,
 		cell
 	}: Props<T> = $props();
 
-	let page = $state(1);
-	let pageSize = $state(10);
+	let page = $state(MIN_TABLE_PAGE_COUNT);
+	let pageSize = $state(DEFAULT_TABLE_PAGE_SIZE);
 	let configuredPageSize = $state<number | undefined>(undefined);
 
 	let total = $derived(dataSource.length);
-	let pageCount = $derived(Math.max(1, Math.ceil(total / pageSize)));
+	let pageCount = $derived(Math.max(MIN_TABLE_PAGE_COUNT, Math.ceil(total / pageSize)));
 	let pageSizeOptions = $derived.by(() => {
-		const options = pagination ? (pagination.pageSizeOptions ?? [5, 10, 20]) : [5, 10, 20];
+		const options = pagination
+			? (pagination.pageSizeOptions ?? DEFAULT_TABLE_PAGE_SIZE_OPTIONS)
+			: DEFAULT_TABLE_PAGE_SIZE_OPTIONS;
 		return [...new Set([...options, pageSize])].sort((a, b) => a - b);
 	});
 	let pageDataSource = $derived(
@@ -76,7 +90,7 @@
 	);
 
 	$effect(() => {
-		const nextPageSize = pagination ? pagination.pageSize ?? 10 : undefined;
+		const nextPageSize = pagination ? pagination.pageSize ?? DEFAULT_TABLE_PAGE_SIZE : undefined;
 		if (nextPageSize === configuredPageSize) return;
 
 		configuredPageSize = nextPageSize;
