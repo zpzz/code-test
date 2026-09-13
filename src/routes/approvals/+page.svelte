@@ -10,9 +10,12 @@
 	import { formatDateTime } from '$lib/format/date';
 	import { currentUserState } from '$lib/stores/user';
 	import { APPLICATION_STATUS, USER_ROLE, enumService } from '$lib/enums';
+	import { APPLICATION_TYPES, type ApplicationType } from '$lib/domain/applicationTypes';
 	import {
 		applicationBudgetTotalOf,
 		applicationFieldsOf,
+		applicationLeaveRangeOf,
+		applicationLeaveTypeOf,
 		applicationRouteOf,
 		centsToYuan,
 		formatAmount
@@ -24,6 +27,8 @@
 	let rejectTarget = $state<Approval | null>(null);
 
 	let approvals = $derived(data.applications);
+	let applicationType = $derived((data.applicationType ?? 'travel') as ApplicationType);
+	let listConfig = $derived(APPLICATION_TYPES[applicationType].list);
 
 	let approvalIds = $derived(approvals.map((application) => application.id));
 	let allSelected = $derived(
@@ -80,9 +85,9 @@
 		},
 		{ key: 'id', title: '申请编号', dataIndex: 'id', width: '8rem' },
 		{ key: 'applicant', title: '申请人', width: '9rem', customCell: true },
-		{ key: 'route', title: '行程', width: '14rem', customCell: true },
-		{ key: 'reason', title: '出差事由', width: '16rem', customCell: true },
-		{ key: 'budget', title: '预算合计', width: '9rem', customCell: true },
+		{ key: 'route', title: listConfig.detailTitle, width: '14rem', customCell: true },
+		{ key: 'reason', title: listConfig.reasonTitle, width: '16rem', customCell: true },
+		{ key: 'budget', title: listConfig.amountTitle, width: '9rem', customCell: true },
 		{ key: 'submittedAt', title: '提交时间', width: '10rem', customCell: true },
 		{
 			key: 'actions',
@@ -173,9 +178,13 @@
 						<p class="mt-0.5 text-xs text-slate-500">{record.department}</p>
 					</div>
 				{:else if column.key === 'route'}
-					<!-- 行程内容较长时截断展示，完整内容通过 title 查看。 -->
-					<span class="block max-w-56 truncate text-slate-700" title={applicationRouteOf(record)}>
-						{applicationRouteOf(record)}
+					<!-- 申请明细根据申请类型展示行程或请假时间。 -->
+					{@const detail =
+						applicationType === 'leave'
+							? applicationLeaveRangeOf(record)
+							: applicationRouteOf(record)}
+					<span class="block max-w-56 truncate text-slate-700" title={detail}>
+						{detail}
 					</span>
 				{:else if column.key === 'reason'}
 					<!-- 出差事由同样采用截断展示，避免影响表格布局。 -->
@@ -183,10 +192,14 @@
 						{applicationFieldsOf(record).reason || '-'}
 					</span>
 				{:else if column.key === 'budget'}
-					<!-- 后端金额按分存储，展示前转换为元并格式化金额。 -->
-					<span class="font-medium text-slate-800">
-						{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
-					</span>
+					<!-- 差旅展示预算金额，请假展示请假类型。 -->
+					{#if applicationType === 'leave'}
+						<span class="font-medium text-slate-800">{applicationLeaveTypeOf(record)}</span>
+					{:else}
+						<span class="font-medium text-slate-800">
+							{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
+						</span>
+					{/if}
 				{:else if column.key === 'submittedAt'}
 					<!-- 提交时间统一使用公共日期格式化方法展示。 -->
 					<span class="text-slate-500">{formatDateTime(record.submittedAt)}</span>

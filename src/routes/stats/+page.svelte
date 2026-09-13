@@ -6,9 +6,12 @@
 	import Panel from '$lib/components/common/Panel.svelte';
 	import StatCard from '$lib/components/common/StatCard.svelte';
 	import { APPLICATION_STATUS, enumService, type ApplicationStatusValue } from '$lib/enums';
+	import { APPLICATION_TYPES, type ApplicationType } from '$lib/domain/applicationTypes';
 	import { formatDate, formatYearMonth } from '$lib/format/date';
 	import {
 		applicationBudgetTotalOf,
+		applicationLeaveRangeOf,
+		applicationLeaveTypeOf,
 		applicationRouteOf,
 		centsToYuan,
 		formatAmount
@@ -45,6 +48,8 @@
 	) as Record<string, StatusConfig>;
 
 	let applications = $derived(data.applications);
+	const applicationType = $derived((data.applicationType ?? 'travel') as ApplicationType);
+	const listConfig = $derived(APPLICATION_TYPES[applicationType].list);
 	let yearOptions = $derived.by(() => {
 		const years = new Set(
 			applications.map((application) => String(new Date(application.createdAt).getUTCFullYear()))
@@ -175,16 +180,16 @@
 	const columns: TableColumn<Application>[] = [
 		{ key: 'id', title: '单号', dataIndex: 'id', width: '10rem' },
 		{ key: 'applicantName', title: '申请人', dataIndex: 'applicantName', width: '9rem' },
-		{ key: 'route', title: '行程明细', width: '27%', customCell: true },
+		{ key: 'route', title: listConfig.detailTitle, width: '27%', customCell: true },
 		{ key: 'createdAt', title: '申请日期', width: '10rem', customCell: true },
 		{ key: 'status', title: '申请状态', width: '10rem', customCell: true },
-		{ key: 'amount', title: '申请金额', width: '10rem', align: 'right', customCell: true },
+		{ key: 'amount', title: listConfig.amountTitle, width: '10rem', align: 'right', customCell: true },
 		{ key: 'action', title: '操作', width: '6rem', customCell: true }
 	];
 </script>
 
 <div class="min-h-full">
-	<PageHeader title="统计报表" description="差旅申请数据总览与审批效率" />
+	<PageHeader title="统计报表" description={`${listConfig.label}数据总览与审批效率`} />
 
 	<div class="mb-4 grid gap-3 md:grid-cols-3">
 		<StatCard label="申请总数" value={total} />
@@ -258,8 +263,11 @@
 			{#snippet cell(context: TableCellContext<Application>)}
 				{@const { column, record } = context}
 				{#if column.key === 'route'}
-					{@const route = applicationRouteOf(record)}
-					<span class="block max-w-80 truncate" title={route}>{route}</span>
+					{@const detail =
+						applicationType === 'leave'
+							? applicationLeaveRangeOf(record)
+							: applicationRouteOf(record)}
+					<span class="block max-w-80 truncate" title={detail}>{detail}</span>
 				{:else if column.key === 'createdAt'}
 					<span class="text-slate-600">{formatDate(record.createdAt)}</span>
 				{:else if column.key === 'status'}
@@ -268,9 +276,13 @@
 						{config?.label ?? record.status}
 					</span>
 				{:else if column.key === 'amount'}
-					<span class="font-medium tabular-nums text-slate-800">
-						{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
-					</span>
+					{#if applicationType === 'leave'}
+						<span class="font-medium text-slate-800">{applicationLeaveTypeOf(record)}</span>
+					{:else}
+						<span class="font-medium tabular-nums text-slate-800">
+							{formatAmount(centsToYuan(applicationBudgetTotalOf(record)))}
+						</span>
+					{/if}
 				{:else if column.key === 'action'}
 					<a
 						href={`/requests/${record.id}?from=stats`}

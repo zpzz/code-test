@@ -9,6 +9,7 @@ import {
 import { ServiceError } from '$lib/server/service-error';
 import type { Actions, PageServerLoad, RequestEvent } from './$types';
 import type { Prisma } from '@prisma/client';
+import { isApplicationType, type ApplicationType } from '$lib/domain/applicationTypes';
 
 function readApplicationIds(value: FormDataEntryValue | null): string[] | null {
 	if (typeof value !== 'string') return null;
@@ -77,8 +78,13 @@ async function handleApprovalAction(
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	const actorId = cookies.get('applicantId');
+	const storedType = cookies.get('currentApplicationType');
+	const applicationType: ApplicationType = isApplicationType(storedType ?? '')
+		? storedType
+		: 'travel';
+
 	if (!actorId) {
-		return { applications: [] };
+		return { applications: [], applicationType };
 	}
 
 	const actor = await prisma.user.findUnique({
@@ -87,7 +93,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	});
 
 	if (!actor) {
-		return { applications: [] };
+		return { applications: [], applicationType };
 	}
 
 	let where: Prisma.ApplicationWhereInput | null = null;
@@ -105,16 +111,20 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	}
 
 	if (!where) {
-		return { applications: [] };
+		return { applications: [], applicationType };
 	}
 
 	const applications = await prisma.application.findMany({
-		where,
+		where: {
+			...where,
+			type: applicationType
+		},
 		include: { applicant: { select: { managerId: true } } },
 		orderBy: [{ submittedAt: 'desc' }, { createdAt: 'desc' }]
 	});
 
 	return {
+		applicationType,
 		applications: applications.map((application) => ({
 			...application,
 			fields: JSON.parse(application.fields)
