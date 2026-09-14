@@ -58,6 +58,8 @@ export async function openCleanPage(page: Page, path = '/request'): Promise<void
 export async function selectUser(page: Page, user: TestUser): Promise<void> {
 	const selectedUser = testUsers[user];
 	const origin = new URL(page.url()).origin;
+
+	// E2E 直接注入测试身份，避免角色切换控件的导航事件与断言发生竞态。
 	await page.context().addCookies([
 		{
 			name: 'applicantId',
@@ -68,8 +70,9 @@ export async function selectUser(page: Page, user: TestUser): Promise<void> {
 	await page.evaluate((currentUser) => {
 		localStorage.setItem('currentUser', JSON.stringify(currentUser));
 	}, selectedUser);
-	await page.reload();
+
 	const userSelect = page.locator('header select');
+	await page.reload({ waitUntil: 'networkidle' });
 	await expect(userSelect).toHaveValue(selectedUser.id);
 }
 
