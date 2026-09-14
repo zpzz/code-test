@@ -5,7 +5,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ cookies }) => {
 	const storedType = cookies.get('currentApplicationType');
 	const applicationType: ApplicationType = isApplicationType(storedType ?? '')
-		? storedType
+		? storedType as ApplicationType
 		: 'travel';
 	const applications = await prisma.application.findMany({
 		where: { type: applicationType },

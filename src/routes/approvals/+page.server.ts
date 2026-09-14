@@ -80,7 +80,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	const actorId = cookies.get('applicantId');
 	const storedType = cookies.get('currentApplicationType');
 	const applicationType: ApplicationType = isApplicationType(storedType ?? '')
-		? storedType
+		? storedType as ApplicationType
 		: 'travel';
 
 	if (!actorId) {
