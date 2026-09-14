@@ -58,13 +58,13 @@
 	const listConfig = $derived(APPLICATION_TYPES[applicationType].list);
 	let yearOptions = $derived.by(() => {
 		const years = new Set(
-			applications.map((application) => String(new Date(application.createdAt).getUTCFullYear()))
+			applications.map((application: Application) => String(new Date(application.createdAt).getUTCFullYear()))
 		);
 		return [...years].sort((a, b) => Number(b) - Number(a));
 	});
 	const monthOptions = Array.from({ length: 12 }, (_, index) => String(index + 1));
 	let visibleApplications = $derived(
-		applications.filter((application) => {
+		applications.filter((application: Application) => {
 			const createdAt = new Date(application.createdAt);
 
 			if (statusFilter !== 'all' && application.status !== statusFilter) return false;
@@ -77,23 +77,23 @@
 	let total = $derived(applications.length);
 	let pending = $derived(
 		applications.filter(
-			(application) =>
+			(application: Application) =>
 				application.status === APPLICATION_STATUS.pendingManager ||
 				application.status === APPLICATION_STATUS.pendingFinance
 		).length
 	);
 	let approved = $derived(
-		applications.filter((application) => application.status === APPLICATION_STATUS.approved).length
+		applications.filter((application: Application) => application.status === APPLICATION_STATUS.approved).length
 	);
 	let rejected = $derived(
-		applications.filter((application) => application.status === APPLICATION_STATUS.rejected).length
+		applications.filter((application: Application) => application.status === APPLICATION_STATUS.rejected).length
 	);
 	let passRate = $derived(approved + rejected === 0 ? 0 : (approved / (approved + rejected)) * 100);
 	let statusSlices = $derived(
 		statusConfigs
 			.map((config) => ({
 				...config,
-				value: applications.filter((application) => application.status === config.status).length
+				value: applications.filter((application: Application) => application.status === config.status).length
 			}))
 			.filter((slice) => slice.value > 0)
 	);
@@ -112,7 +112,7 @@
 		trendMonths.map((month) => ({
 			month,
 			count: applications.filter(
-				(application) => formatYearMonth(application.createdAt) === month
+				(application: Application) => formatYearMonth(application.createdAt) === month
 			).length
 		}))
 	);
@@ -147,7 +147,7 @@
 
 	let trendOption = $derived<EChartOption>({
 		color: ['#6366f1'],
-		tooltip: { trigger: 'axis', valueFormatter: (value) => `${value ?? 0} 单` },
+		tooltip: { trigger: 'axis', valueFormatter: (value: number) => `${value ?? 0} 单` },
 		grid: { top: 28, right: 20, bottom: 28, left: 16, containLabel: true },
 		xAxis: {
 			type: 'category',

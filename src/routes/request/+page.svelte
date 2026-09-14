@@ -53,7 +53,7 @@
 
 	let yearOptions = $derived.by(() => {
 		const years = new Set(
-			myApplications.map((application) => String(new Date(application.createdAt).getUTCFullYear()))
+			myApplications.map((application: Application) => String(new Date(application.createdAt).getUTCFullYear()))
 		);
 		return [...years].sort((a, b) => Number(b) - Number(a));
 	});
@@ -68,18 +68,18 @@
 					? myApplications.length
 					: option.value === 'pending'
 						? myApplications.filter(
-								(application) =>
+								(application: Application) =>
 									application.status === APPLICATION_STATUS.pendingManager ||
 									application.status === APPLICATION_STATUS.pendingFinance
 							).length
-						: myApplications.filter((application) => application.status === option.value).length
+						: myApplications.filter((application: Application) => application.status === option.value).length
 		}))
 	);
 
 	let visibleApplications = $derived.by(() => {
 		const search = keyword.trim().toLowerCase();
 
-		return myApplications.filter((application) => {
+		return myApplications.filter((application: Application) => {
 			if (
 				statusFilter === 'pending' &&
 				application.status !== APPLICATION_STATUS.pendingManager &&

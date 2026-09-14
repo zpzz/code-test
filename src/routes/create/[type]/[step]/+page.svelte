@@ -9,14 +9,20 @@
 	import DynamicField from '$lib/components/form/DynamicField.svelte';
 	import {
 		APPLICATION_TYPES,
-		type ApplicationType,
-		type FieldDef
+		type ApplicationType
 	} from '$lib/domain/applicationTypes';
 	import { stepHref, stepsOf } from '$lib/domain/wizard';
-	import { centsToYuan, formatAmount, getEnumLabel } from '$lib/utils';
+	import {
+		createInitialFields,
+		displayValue,
+		flattenPreviewFields,
+		mergeInitialFields,
+		toFormFields,
+		validateField,
+		valueForPreview,
+		type FormValue
+	} from '$lib/utils/application-wizard';
 	import type { PageData } from './$types';
-
-	type FormValue = Record<string, unknown>;
 
 	let { data, form }: { data: PageData; form?: { message?: string } } = $props();
 	const type = $derived((page.params.type ?? data.type) as ApplicationType);
@@ -74,80 +80,11 @@
 		attempted = false;
 	});
 
-	function createInitialFields(fieldDefs: FieldDef[]): FormValue {
-		const result: FormValue = {};
-		for (const field of fieldDefs) {
-			if (field.kind === 'group') {
-				result[field.key] = createInitialFields(field.fields);
-			} else if (field.kind === 'repeatable') {
-				result[field.key] = [createInitialFields(field.itemFields)];
-			} else if (field.kind === 'radio') {
-				result[field.key] = field.options[0]?.value ?? '';
-			} else if (field.kind === 'number') {
-				result[field.key] = 0;
-			} else if (field.kind === 'dateRange') {
-				result[field.key] = { [field.fromKey]: '', [field.toKey]: '' };
-			} else {
-				result[field.key] = '';
-			}
-		}
-		return result;
-	}
-
-	function toFormFields(fieldDefs: FieldDef[], source: FormValue): FormValue {
-		const result: FormValue = {};
-		for (const field of fieldDefs) {
-			const value = source[field.key];
-			if (field.kind === 'group') {
-				result[field.key] = toFormFields(field.fields, (value as FormValue) ?? {});
-			} else if (field.kind === 'repeatable') {
-				const rows = (Array.isArray(value) ? value : []).map((row) =>
-					toFormFields(field.itemFields, row as FormValue)
-				);
-				result[field.key] =
-					rows.length > 0 || !field.min ? rows : [createInitialFields(field.itemFields)];
-			} else if (field.kind === 'dateRange') {
-				const range = (value as FormValue | undefined) ?? {};
-				result[field.key] = {
-					[field.fromKey]: range[field.fromKey] ?? source[field.fromKey] ?? '',
-					[field.toKey]: range[field.toKey] ?? source[field.toKey] ?? ''
-				};
-			} else if (field.kind === 'number' && field.money) {
-				result[field.key] = centsToYuan(Number(value) || 0);
-			} else {
-				result[field.key] = value ?? (field.kind === 'number' ? 0 : '');
-			}
-		}
-		return result;
-	}
-
-	function mergeInitialFields(fieldDefs: FieldDef[], source: FormValue): FormValue {
-		const result: FormValue = {};
-
-		for (const field of fieldDefs) {
-			const value = source[field.key];
-			if (field.kind === 'group') {
-				result[field.key] = mergeInitialFields(field.fields, (value as FormValue) ?? {});
-			} else if (field.kind === 'repeatable') {
-				const rows = Array.isArray(value)
-					? value.map((row) => mergeInitialFields(field.itemFields, row as FormValue))
-					: [];
-				result[field.key] =
-					rows.length > 0 || !field.min ? rows : [createInitialFields(field.itemFields)];
-			} else if (field.kind === 'dateRange') {
-				const range = (value as FormValue | undefined) ?? {};
-				result[field.key] = {
-					[field.fromKey]: range[field.fromKey] ?? source[field.fromKey] ?? '',
-					[field.toKey]: range[field.toKey] ?? source[field.toKey] ?? ''
-				};
-			} else {
-				result[field.key] = value ?? (field.kind === 'number' ? 0 : field.kind === 'radio' ? field.options[0]?.value ?? '' : '');
-			}
-		}
-
-		return result;
-	}
-
+	/**
+	 * 同步更新当前表单、共享草稿 store 和 sessionStorage。
+	 *
+	 * 路由切换时页面会重新创建，因此需要同时保留内存外的草稿数据。
+	 */
 	function persistFields(nextFields: FormValue): void {
 		const formKey = loadedFormKey ?? `${type}:new`;
 		fields = nextFields;
@@ -157,6 +94,9 @@
 		}
 	}
 
+	/**
+	 * 更新一个顶层字段，并保留 group 字段中尚未修改的子字段。
+	 */
 	function updateField(key: string, value: unknown): void {
 		const previousValue = fields[key];
 		const nextValue =
@@ -172,79 +112,9 @@
 		persistFields({ ...fields, [key]: nextValue });
 	}
 
-	function valueForPreview(field: FieldDef, source: Record<string, unknown>): unknown {
-		if (field.kind === 'dateRange') {
-			return source[field.key] ?? {
-				[field.fromKey]: source[field.fromKey],
-				[field.toKey]: source[field.toKey]
-			};
-		}
-		return source[field.key];
-	}
-
-	function flattenPreviewFields(fieldDefs: FieldDef[]): FieldDef[] {
-		return fieldDefs.flatMap((field) => {
-			if (field.kind === 'group') return flattenPreviewFields(field.fields);
-			return [field];
-		});
-	}
-
-	function fieldLabel(field: FieldDef): string {
-		return field.label;
-	}
-
-	function displayValue(field: FieldDef, value: unknown): string {
-		if (field.kind === 'select' || field.kind === 'radio') {
-			return getEnumLabel(field.options, String(value ?? ''));
-		}
-		if (field.kind === 'number') {
-			return field.money ? formatAmount(centsToYuan(Number(value) || 0)) : String(value ?? '-');
-		}
-		if (field.kind === 'dateRange') {
-			const range = (value as Record<string, unknown> | undefined) ?? {};
-			return `${range[field.fromKey] || '-'} 至 ${range[field.toKey] || '-'}`;
-		}
-		if (field.kind === 'repeatable') {
-			const rows = Array.isArray(value) ? value : [];
-			return rows
-				.map((row, index) => {
-					const item = row as Record<string, unknown>;
-					const parts = field.itemFields
-						.filter((child) => child.kind !== 'repeatable' && child.kind !== 'group')
-						.map((child) => `${child.label}: ${displayValue(child, item[child.key])}`);
-					return `${index + 1}. ${parts.join('，')}`;
-				})
-				.join('\n');
-		}
-		return String(value ?? '').trim() || '-';
-	}
-
-	function validateField(field: FieldDef, value: unknown): boolean {
-		if (field.kind === 'group') {
-			return field.fields.every((child) => validateField(child, (value as FormValue | undefined)?.[child.key]));
-		}
-		if (field.kind === 'repeatable') {
-			const rows = Array.isArray(value) ? value : [];
-			return rows.length >= (field.min ?? 0) && rows.length <= (field.max ?? 10) &&
-				rows.every((row) => field.itemFields.every((child) => validateField(child, (row as FormValue)[child.key])));
-		}
-		if (field.kind === 'dateRange') {
-			const range = (value as FormValue | undefined) ?? {};
-			if (field.required && (!range[field.fromKey] || !range[field.toKey])) return false;
-			return (
-				!range[field.fromKey] ||
-				!range[field.toKey] ||
-				String(range[field.toKey]) >= String(range[field.fromKey])
-			);
-		}
-		if (field.required && (value === undefined || value === null || String(value).trim() === '')) return false;
-		if (field.kind === 'text' || field.kind === 'textarea') {
-			if (typeof value === 'string' && field.minLength && value.trim().length < field.minLength) return false;
-			if (typeof value === 'string' && field.maxLength && value.trim().length > field.maxLength) return false;
-		}
-		return true;
-	}
-
+	/**
+	 * 判断步骤是否已完成，用于步骤导航的视觉状态和可达性判断。
+	 */
 	function isStepComplete(index: number): boolean {
 		// 未到达的步骤不能因为默认值或预览类型而显示为已完成。
 		if (index > currentIndex) return false;
@@ -254,10 +124,18 @@
 		return step.fields.every((field) => validateField(field, fields[field.key]));
 	}
 
+	/**
+	 * 判断用户是否可以跳转到目标步骤。
+	 *
+	 * 只有当前步骤以前的步骤全部完成，后续步骤才允许点击进入。
+	 */
 	function isReachable(index: number): boolean {
 		return index <= currentIndex || Array.from({ length: index }, (_, item) => isStepComplete(item)).every(Boolean);
 	}
 
+	/**
+	 * 跳转到指定步骤，并保留当前编辑模式参数。
+	 */
 	async function goToStep(index: number): Promise<void> {
 		if (!isReachable(index)) return;
 		await goto(stepHref(type, steps[index].slug, page.url.searchParams.get('edit')), {
@@ -266,6 +144,9 @@
 		});
 	}
 
+	/**
+	 * 校验当前步骤并进入下一步。
+	 */
 	function nextStep(): void {
 		attempted = true;
 		if (!isStepComplete(currentIndex)) return;
@@ -273,11 +154,17 @@
 		if (currentIndex < steps.length - 1) goToStep(currentIndex + 1);
 	}
 
+	/**
+	 * 返回上一步，同时清除当前步骤的校验提示。
+	 */
 	function previousStep(): void {
 		attempted = false;
 		if (currentIndex > 0) goToStep(currentIndex - 1);
 	}
 
+	/**
+	 * 提交或保存草稿前清除客户端临时草稿，避免下次打开时重复回填。
+	 */
 	function clearDraftBeforeSubmit(): void {
 		wizardDraft.set(null);
 		if (browser) {
@@ -345,7 +232,7 @@
 				<div class="space-y-5 text-sm">
 					{#each flattenPreviewFields(steps.flatMap((step) => step.fields)) as field (field.key)}
 						<div>
-							<h2 class="font-semibold text-slate-800">{fieldLabel(field)}</h2>
+							<h2 class="font-semibold text-slate-800">{field.label}</h2>
 							<p class="mt-2 whitespace-pre-wrap leading-6 text-slate-700">{displayValue(field, valueForPreview(field, fields))}</p>
 						</div>
 					{/each}

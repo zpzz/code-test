@@ -4,3 +4,4 @@
 export * from './application';
 export * from './application-form';
 export * from './application-display';
+export * from './application-wizard';

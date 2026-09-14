@@ -30,9 +30,9 @@
 	let applicationType = $derived((data.applicationType ?? 'travel') as ApplicationType);
 	let listConfig = $derived(APPLICATION_TYPES[applicationType].list);
 
-	let approvalIds = $derived(approvals.map((application) => application.id));
+	let approvalIds = $derived(approvals.map((application: Approval) => application.id));
 	let allSelected = $derived(
-		approvalIds.length > 0 && approvalIds.every((applicationId) => selectedIds.includes(applicationId))
+		approvalIds.length > 0 && approvalIds.every((applicationId: string) => selectedIds.includes(applicationId))
 	);
 	let hasApprovalPermission = $derived(
 		$currentUserState?.role === USER_ROLE.manager || $currentUserState?.role === USER_ROLE.finance
