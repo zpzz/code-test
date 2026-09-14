@@ -2,6 +2,22 @@
 	import type { FieldDef } from '$lib/domain/applicationTypes';
 	import DynamicField from './DynamicField.svelte';
 
+	/** 所有基础输入控件共用的 Tailwind 样式。 */
+	const INPUT_CLASS =
+		'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+
+	/** 重复字段未配置 max 时的默认最大行数。 */
+	const DEFAULT_REPEATABLE_MAX = 10;
+
+	/** 重复字段添加按钮未配置文案时的默认文本。 */
+	const DEFAULT_ADD_LABEL = '添加';
+
+	/** 重复字段删除按钮的统一文案。 */
+	const REMOVE_LABEL = '删除';
+
+	/** 下拉框的空选项文案。 */
+	const EMPTY_SELECT_LABEL = '请选择';
+
 	interface Props {
 		field: FieldDef;
 		value: unknown;
@@ -9,9 +25,6 @@
 	}
 
 	let { field, value, onChange }: Props = $props();
-
-	const inputClass =
-		'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 	function updateObject(key: string, nextValue: unknown): void {
 		onChange({ ...((value as Record<string, unknown>) ?? {}), [key]: nextValue });
@@ -77,14 +90,14 @@
 			<h2 class="text-sm font-semibold text-slate-700">{field.label}</h2>
 			<button
 				type="button"
-				disabled={repeatableRows(value, field.itemFields, field.min).length >= (field.max ?? 10)}
+				disabled={repeatableRows(value, field.itemFields, field.min).length >= (field.max ?? DEFAULT_REPEATABLE_MAX)}
 				class="text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 				onclick={() => {
 					const rows = repeatableRows(value, field.itemFields, field.min);
 					onChange([...rows, createInitialValue(field.itemFields)]);
 				}}
 			>
-				{field.addLabel ?? '添加'}
+				{field.addLabel ?? DEFAULT_ADD_LABEL}
 			</button>
 		</div>
 		{#each repeatableRows(value, field.itemFields, field.min) as row, index (String(row[field.itemKey] ?? index))}
@@ -108,7 +121,7 @@
 							onChange(rows.filter((_, rowIndex) => rowIndex !== index));
 						}}
 					>
-						删除
+						{REMOVE_LABEL}
 					</button>
 				</div>
 			</div>
@@ -139,8 +152,8 @@
 		<span class="text-sm font-medium text-slate-700">
 			{field.label}{#if field.required}<span class="text-red-500"> *</span>{/if}
 		</span>
-		<select class="{inputClass} mt-2" value={String(value ?? '')} onchange={(event) => onChange((event.currentTarget as HTMLSelectElement).value)}>
-			<option value="">请选择</option>
+		<select class="{INPUT_CLASS} mt-2" value={String(value ?? '')} onchange={(event) => onChange((event.currentTarget as HTMLSelectElement).value)}>
+			<option value="">{EMPTY_SELECT_LABEL}</option>
 			{#each field.options as option (option.value)}
 				<option value={option.value}>{option.label}</option>
 			{/each}
@@ -151,17 +164,17 @@
 		<span class="text-sm font-medium text-slate-700">
 			{field.label}{#if field.required}<span class="text-red-500"> *</span>{/if}
 		</span>
-		<input class="{inputClass} mt-2" type="date" value={String(value ?? '')} oninput={(event) => onChange((event.currentTarget as HTMLInputElement).value)} />
+		<input class="{INPUT_CLASS} mt-2" type="date" value={String(value ?? '')} oninput={(event) => onChange((event.currentTarget as HTMLInputElement).value)} />
 	</label>
 {:else if field.kind === 'dateRange'}
 	<div class="grid gap-3 sm:grid-cols-2">
 		<label class="block">
 			<span class="text-sm font-medium text-slate-700">{field.label}（开始）</span>
-			<input class="{inputClass} mt-2" type="date" value={String((value as Record<string, unknown> | undefined)?.[field.fromKey] ?? '')} oninput={(event) => updateObject(field.fromKey, (event.currentTarget as HTMLInputElement).value)} />
+			<input class="{INPUT_CLASS} mt-2" type="date" value={String((value as Record<string, unknown> | undefined)?.[field.fromKey] ?? '')} oninput={(event) => updateObject(field.fromKey, (event.currentTarget as HTMLInputElement).value)} />
 		</label>
 		<label class="block">
 			<span class="text-sm font-medium text-slate-700">{field.label}（结束）</span>
-			<input class="{inputClass} mt-2" type="date" value={String((value as Record<string, unknown> | undefined)?.[field.toKey] ?? '')} oninput={(event) => updateObject(field.toKey, (event.currentTarget as HTMLInputElement).value)} />
+			<input class="{INPUT_CLASS} mt-2" type="date" value={String((value as Record<string, unknown> | undefined)?.[field.toKey] ?? '')} oninput={(event) => updateObject(field.toKey, (event.currentTarget as HTMLInputElement).value)} />
 		</label>
 	</div>
 {:else if field.kind === 'number'}
@@ -169,7 +182,7 @@
 		<span class="text-sm font-medium text-slate-700">
 			{field.label}{#if field.required}<span class="text-red-500"> *</span>{/if}
 		</span>
-		<input class="{inputClass} mt-2" type="number" min={field.min ?? 0} step="0.01" value={String(value ?? 0)} onchange={(event) => onChange(Number((event.currentTarget as HTMLInputElement).value) || 0)} />
+		<input class="{INPUT_CLASS} mt-2" type="number" min={field.min ?? 0} step="0.01" value={String(value ?? 0)} onchange={(event) => onChange(Number((event.currentTarget as HTMLInputElement).value) || 0)} />
 		{#if field.hint}<p class="mt-1 text-xs text-slate-400">{field.hint}</p>{/if}
 	</label>
 {:else if field.kind === 'textarea'}
@@ -177,7 +190,7 @@
 		<span class="text-sm font-medium text-slate-700">
 			{field.label}{#if field.required}<span class="text-red-500"> *</span>{/if}
 		</span>
-		<textarea class="{inputClass} mt-2 min-h-28 resize-y" rows="4" maxlength={field.maxLength} placeholder={field.placeholder} value={String(value ?? '')} oninput={(event) => onChange((event.currentTarget as HTMLTextAreaElement).value)}></textarea>
+		<textarea class="{INPUT_CLASS} mt-2 min-h-28 resize-y" rows="4" maxlength={field.maxLength} placeholder={field.placeholder} value={String(value ?? '')} oninput={(event) => onChange((event.currentTarget as HTMLTextAreaElement).value)}></textarea>
 		{#if field.hint}<p class="mt-1 text-xs text-slate-400">{field.hint}</p>{/if}
 	</label>
 {:else if field.kind === 'text'}
@@ -185,6 +198,6 @@
 		<span class="text-sm font-medium text-slate-700">
 			{field.label}{#if field.required}<span class="text-red-500"> *</span>{/if}
 		</span>
-		<input class="{inputClass} mt-2" value={String(value ?? '')} maxlength={field.maxLength} placeholder={field.placeholder} oninput={(event) => onChange((event.currentTarget as HTMLInputElement).value)} />
+		<input class="{INPUT_CLASS} mt-2" value={String(value ?? '')} maxlength={field.maxLength} placeholder={field.placeholder} oninput={(event) => onChange((event.currentTarget as HTMLInputElement).value)} />
 	</label>
 {/if}

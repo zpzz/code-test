@@ -1,4 +1,16 @@
 <script lang="ts">
+	/** 分页器默认可选的每页条数。 */
+	const DEFAULT_PAGE_SIZE_OPTIONS = [5, 10, 20] as const;
+
+	/** 页码窗口最多展示 5 个页码。 */
+	const MAX_VISIBLE_PAGE_COUNT = 5;
+
+	/** 当前页前后各展示几个页码。 */
+	const PAGE_WINDOW_SPAN = 2;
+
+	/** 分页器至少保留一页，避免 total 为 0 时产生无效页码。 */
+	const MIN_PAGE_COUNT = 1;
+
 	interface Props {
 		page: number;
 		pageSize: number;
@@ -12,20 +24,19 @@
 		page,
 		pageSize,
 		total,
-		pageSizeOptions = [5, 10, 20],
+		pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 		onPageChange,
 		onPageSizeChange
 	}: Props = $props();
 
-	let pageCount = $derived(Math.max(1, Math.ceil(total / pageSize)));
+	let pageCount = $derived(Math.max(MIN_PAGE_COUNT, Math.ceil(total / pageSize)));
 	let pages = $derived.by(() => {
-		const span = 2;
-		let from = Math.max(1, page - span);
-		let to = Math.min(pageCount, page + span);
+		let from = Math.max(1, page - PAGE_WINDOW_SPAN);
+		let to = Math.min(pageCount, page + PAGE_WINDOW_SPAN);
 
-		if (to - from < 4) {
-			if (from === 1) to = Math.min(pageCount, 5);
-			else from = Math.max(1, to - 4);
+		if (to - from < MAX_VISIBLE_PAGE_COUNT - 1) {
+			if (from === 1) to = Math.min(pageCount, MAX_VISIBLE_PAGE_COUNT);
+			else from = Math.max(1, to - (MAX_VISIBLE_PAGE_COUNT - 1));
 		}
 
 		return Array.from({ length: to - from + 1 }, (_, index) => from + index);

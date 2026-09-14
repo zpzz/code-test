@@ -4,6 +4,22 @@
 	import type { FieldDef } from '$lib/domain/applicationTypes';
 	import DynamicDetail from './DynamicDetail.svelte';
 
+	/** 空字段的统一展示文本。 */
+	const EMPTY_VALUE = '-';
+
+	/** 重复字段没有数据时的统一提示。 */
+	const EMPTY_REPEATABLE_TEXT = '暂无数据';
+
+	/** 重复字段每一行的标题前缀。 */
+	const REPEATABLE_ITEM_LABEL = '第';
+
+	/** 动态字段 key 到枚举服务 key 的映射。 */
+	const ENUM_KEY_BY_FIELD_KEY: Record<string, 'leaveType' | 'transport' | 'urgency'> = {
+		leaveType: 'leaveType',
+		transport: 'transport',
+		urgency: 'urgency'
+	};
+
 	interface Props {
 		field: FieldDef;
 		value: unknown;
@@ -12,13 +28,12 @@
 	let { field, value }: Props = $props();
 
 	function textValue(currentValue: unknown): string {
-		return String(currentValue ?? '').trim() || '-';
+		return String(currentValue ?? '').trim() || EMPTY_VALUE;
 	}
 
 	function displayValue(field: FieldDef, currentValue: unknown): string {
 		if (field.kind === 'select' || field.kind === 'radio') {
-			const enumKey =
-				field.key === 'leaveType' ? 'leaveType' : field.key === 'transport' ? 'transport' : 'urgency';
+			const enumKey = ENUM_KEY_BY_FIELD_KEY[field.key] ?? 'urgency';
 			return enumService.label(enumKey, String(currentValue ?? ''));
 		}
 
@@ -59,7 +74,7 @@
 		{#if Array.isArray(value) && value.length > 0}
 			{#each value as row, index (String((row as Record<string, unknown>)[field.itemKey] ?? index))}
 				<div class="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-					<p class="mb-3 text-xs font-semibold text-slate-500">第 {index + 1} 段</p>
+					<p class="mb-3 text-xs font-semibold text-slate-500">{REPEATABLE_ITEM_LABEL} {index + 1} 段</p>
 					<div class="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
 						{#each field.itemFields as child (child.key)}
 							<DynamicDetail
@@ -71,7 +86,7 @@
 				</div>
 			{/each}
 		{:else}
-			<p class="text-sm text-slate-400">暂无数据</p>
+			<p class="text-sm text-slate-400">{EMPTY_REPEATABLE_TEXT}</p>
 		{/if}
 	</div>
 {:else}
